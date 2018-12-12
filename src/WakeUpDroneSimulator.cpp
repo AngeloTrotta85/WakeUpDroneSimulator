@@ -23,6 +23,7 @@
 #include <boost/range/irange.hpp>
 #include <boost/math/special_functions/factorials.hpp>
 #include "MyCoord.h"
+#include "Simulator.h"
 
 using namespace std;
 using namespace boost;
@@ -54,6 +55,21 @@ int main(int argc, char **argv) {
 	cout << "Wake-up Drone BEGIN!!!" << endl;
 
 	InputParser input(argc, argv);
+
+	const std::string &inputSensorsFileName = input.getCmdOption("-is");
+	const std::string &inputUAVsFileName = input.getCmdOption("-iu");
+	const std::string &outputSensorsFileName = input.getCmdOption("-os");
+	const std::string &outputUAVsFileName = input.getCmdOption("-ou");
+	const std::string &inputNumSensors = input.getCmdOption("-ns");
+	const std::string &inputNumUAV = input.getCmdOption("-nu");
+	const std::string &inputReadingsFileName = input.getCmdOption("-ir");
+	const std::string &outputReadingsFileName = input.getCmdOption("-or");
+	const std::string &scenarioMaxVal = input.getCmdOption("-scenario");
+	const std::string &seedUser = input.getCmdOption("-seed");
+	const std::string &dotFileOutput = input.getCmdOption("-dot");
+	const std::string &inputTimeSim = input.getCmdOption("-time");
+	const std::string &algotype_clustering = input.getCmdOption("-algoClust");
+	const std::string &algotype_tsp = input.getCmdOption("-algoTSP");
 
 
 	cout << "Wake-up Drone FINISH!!!" << endl;

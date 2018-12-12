@@ -55,6 +55,7 @@ int main(int argc, char **argv) {
 
 	InputParser input(argc, argv);
 
+
 	cout << "Wake-up Drone FINISH!!!" << endl;
 	return EXIT_SUCCESS;
 }

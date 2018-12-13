@@ -18,6 +18,11 @@ public:
 	UAV(MyCoord recCoord, double re, int id_new);
 
 public:
+	static void generateRandomUAVs(std::list<UAV *> &pl, int ss, int nu);
+	static void importUAVsFromFile(std::string inputFileName, std::list<UAV *> &pl);
+	static void writeOnFileUAVs(std::string fn, std::list<UAV *> pointList);
+
+public:
 	MyCoord recharge_coord;
 	double residual_energy;
 	std::list<Readings *> mySensorReadings;

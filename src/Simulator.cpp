@@ -12,8 +12,9 @@ Simulator::Simulator() {
 	end_time = -1;
 }
 
-void Simulator::init(int time) {
-	simulation_time = time;
+void Simulator::init(int stime, int etime) {
+	simulation_time = stime;
+	end_time = etime;
 }
 
 void Simulator::finish() {

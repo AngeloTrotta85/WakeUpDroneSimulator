@@ -8,6 +8,7 @@
 #ifndef SENSOR_H_
 #define SENSOR_H_
 
+
 #include "MyCoord.h"
 
 class Readings;
@@ -16,6 +17,13 @@ class Sensor {
 public:
 	Sensor(MyCoord sensCoord, double re);
 	Sensor(MyCoord sensCoord, double re, int id_new);
+
+public:
+	static void generateRandomSensors(std::list<Sensor *> &pl, int ss, int ns);
+	static void writeOnFileSensors(std::string fn, std::list<Sensor *> pointList);
+	static void importSensorsFromFile(std::string inputFileName, std::list<Sensor *> &pl);
+
+	static void printLogsSensors (std::list<Sensor *> &sl, int timeNow);
 
 public:
 	MyCoord coord;

@@ -151,10 +151,15 @@ int main(int argc, char **argv) {
 	std::list<UAV *> uavsList;
 	std::vector<CoordCluster *> clustersVec;
 
+	// default values
 	int scenarioSize = 100;
 	int nSensors = 40;
 	int nUAV = 3;
 	int time_N = 100;
+	double kd = 0.08;
+	double kt = 0.02;
+	double ke = 0.0005;
+	double a = 0.5;
 
 	cout << "Wake-up Drone BEGIN!!!" << endl;
 
@@ -166,14 +171,20 @@ int main(int argc, char **argv) {
 	const std::string &outputUAVsFileName = input.getCmdOption("-ou");
 	const std::string &inputNumSensors = input.getCmdOption("-ns");
 	const std::string &inputNumUAV = input.getCmdOption("-nu");
-	const std::string &inputReadingsFileName = input.getCmdOption("-ir");
-	const std::string &outputReadingsFileName = input.getCmdOption("-or");
+
 	const std::string &scenarioMaxVal = input.getCmdOption("-scenario");
 	const std::string &seedUser = input.getCmdOption("-seed");
 	const std::string &dotFileOutput = input.getCmdOption("-dot");
 	const std::string &inputTimeSim = input.getCmdOption("-time");
+
 	const std::string &algotype_clustering = input.getCmdOption("-algoClust");
 	const std::string &algotype_tsp = input.getCmdOption("-algoTSP");
+
+	const std::string &costant_kd = input.getCmdOption("-kd");
+	const std::string &costant_kt = input.getCmdOption("-kt");
+	const std::string &costant_ke = input.getCmdOption("-ke");
+	const std::string &costant_alpha = input.getCmdOption("-alpha");
+
 
 	if (!seedUser.empty()) {
 		int seedR = atoi(seedUser.c_str());
@@ -220,18 +231,23 @@ int main(int argc, char **argv) {
 		UAV::importUAVsFromFile(inputUAVsFileName, uavsList);
 	}
 
-	/*if (inputReadingsFileName.empty()) {
-		Readings::generate_readings(sensorsList, uavsList, time_N);
-		if (!outputReadingsFileName.empty()) {
-			Readings::writeOnFileReadings(outputReadingsFileName, sensorsList, time_N);
-		}
+
+	if (!costant_kd.empty()) {
+		kd = atof(costant_kd.c_str());
 	}
-	else {
-		Readings::importReadingsFromFile(inputReadingsFileName, sensorsList, uavsList, time_N);
-	}*/
+	if (!costant_kt.empty()) {
+		kt = atof(costant_kt.c_str());
+	}
+	if (!costant_ke.empty()) {
+		ke = atof(costant_ke.c_str());
+	}
+	if (!costant_alpha.empty()) {
+		a = atof(costant_alpha.c_str());
+	}
+
+	Loss::getInstance().init(kd, kt, ke, a);
 
 	clustersVec.resize(uavsList.size(), nullptr);
-
 	int idd = 0;
 	for (auto& uav : uavsList) {
 		clustersVec[idd] = new CoordCluster(uav, idd);
@@ -241,6 +257,8 @@ int main(int argc, char **argv) {
 	Sensor::printLogsSensors(sensorsList, time_N);
 
 	Simulator::getInstance().init(0, time_N);
+	Simulator::getInstance().setClusteringAlgo(algotype_clustering);
+	Simulator::getInstance().setTSPAlgo(algotype_tsp);
 	Simulator::getInstance().run(clustersVec, sensorsList);
 	Simulator::getInstance().finish();
 

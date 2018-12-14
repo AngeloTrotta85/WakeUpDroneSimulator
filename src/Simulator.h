@@ -8,6 +8,17 @@
 #ifndef SIMULATOR_H_
 #define SIMULATOR_H_
 
+#include <stdlib.h>
+#include <stdio.h>
+#include <iostream>     // std::cout
+#include <fstream>      // std::ifstream
+#include <algorithm>    // std::find
+#include <vector>       // std::vector
+#include <list>       // std::list
+#include <stack>
+#include <map>       // std::list
+
+#include "clustering/Clustering.h"
 #include "CoordCluster.h"
 
 class Simulator {
@@ -40,12 +51,17 @@ public:
 	void run(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &sensList);
 	void finish();
 
+	void setClusteringAlgo(std::string algotype_clustering);
+	void setTSPAlgo(std::string algotype_tsp);
+
 	int getEndTime() const { return end_time; }
 	int getSimulationTime() const { return simulation_time; }
 
 private:
 	int simulation_time;
 	int end_time;
+
+	Clustering *clust;
 };
 
 #endif /* SIMULATOR_H_ */

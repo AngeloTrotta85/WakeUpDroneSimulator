@@ -16,9 +16,11 @@ public:
 	CoordCluster (UAV *uav, int cID);
 
 	void clear(void);
+	bool checkNotChange(void);
 
 public:
 	std::list<Sensor *> pointsList;
+	std::list<Sensor *> pointsList_bkp;
 	std::list<Sensor *> pointsTSP_listFinal;
 	std::list<Sensor *> pointsNoTSP_listFinal;
 	MyCoord *clusterHead;

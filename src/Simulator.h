@@ -19,6 +19,7 @@
 #include <map>       // std::list
 
 #include "clustering/Clustering.h"
+#include "tsp/TSP.h"
 #include "CoordCluster.h"
 
 class Simulator {
@@ -62,6 +63,7 @@ private:
 	int end_time;
 
 	Clustering *clust;
+	TSP *tsp;
 };
 
 #endif /* SIMULATOR_H_ */

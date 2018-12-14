@@ -14,11 +14,18 @@
 #include "clustering/ClusteringRRobinMinimumLoss.h"
 #include "clustering/ClusteringRRobinMinimumLossLocal.h"
 
+#include "tsp/TSPRandom.h"
+#include "tsp/TSPNoFullRandom.h"
+#include "tsp/TSP2Opt.h"
+
+using namespace std;
+
 Simulator::Simulator() {
 	simulation_time = 0;
 	end_time = -1;
 
 	clust = nullptr;
+	tsp = nullptr;
 }
 
 void Simulator::init(int stime, int etime) {
@@ -59,7 +66,26 @@ void Simulator::setClusteringAlgo(std::string algotype_clustering) {
 }
 
 void Simulator::setTSPAlgo(std::string algotype_tsp) {
-
+	if (!algotype_tsp.empty()) {
+		if (algotype_tsp.compare("frTSP") == 0) {
+			tsp = new TSPRandom(); //full random TSP
+		}
+		else if (algotype_tsp.compare("nfrTSP") == 0) {
+			tsp = new TSPNoFullRandom(); //no full random TSP
+		}
+		else if (algotype_tsp.compare("tsp2opt") == 0) {
+			tsp = new TSP2Opt(); // 2-opt algorithm
+		}
+		else {
+			cerr << "Unknown algotype for tsp: \"" << algotype_tsp << "\". Using default full random TSP" << endl;
+			tsp = new TSPRandom(); //full random TSP
+		}
+	}
+	else {
+		//default simple k-means
+		cerr << "Undefined algotype for tsp. Using default full random TSP" << endl;
+		tsp = new TSPRandom(); //full random TSP
+	}
 }
 
 void Simulator::finish() {

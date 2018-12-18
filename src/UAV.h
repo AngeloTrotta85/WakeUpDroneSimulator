@@ -14,8 +14,21 @@ class Readings;
 
 class UAV {
 public:
+	typedef enum uav_state {
+		IDLE,
+		RECHARGING,
+		MOVING,
+		WAKINGUP,
+		READING
+	} uav_state;
+
+public:
 	UAV(MyCoord recCoord, double re);
 	UAV(MyCoord recCoord, double re, int id_new);
+
+	void move(void);
+	void update_energy(void);
+
 
 public:
 	static void generateRandomUAVs(std::list<UAV *> &pl, int ss, int nu);
@@ -25,7 +38,10 @@ public:
 public:
 	MyCoord recharge_coord;
 	double residual_energy;
+	double max_energy;
 	std::list<Readings *> mySensorReadings;
+	uav_state state;
+
 	int id;
 	static int idUAVGen;
 };

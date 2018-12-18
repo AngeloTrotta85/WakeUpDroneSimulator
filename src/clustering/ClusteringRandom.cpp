@@ -15,7 +15,7 @@ ClusteringRandom::ClusteringRandom() {
 
 }
 
-void ClusteringRandom::cluster(std::vector<CoordCluster *> &cv, std::list<Sensor *> &sl, int time_now) {
+void ClusteringRandom::cluster(std::vector<CoordCluster *> &cv, std::list<Sensor *> &sl, int time_now, int uav_id) {
 	randomizeClusters(cv, sl);
 
 	equalizeLoss(cv, sl, time_now);

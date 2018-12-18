@@ -12,13 +12,14 @@ TSPRandom::TSPRandom() {
 
 }
 
-void TSPRandom::calculateTSP(std::vector<CoordCluster *> &cv, int time_now) {
-	for (auto& c : cv) {
-		c->pointsTSP_listFinal.clear();
-		c->pointsNoTSP_listFinal.clear();
+void TSPRandom::calculateTSP(CoordCluster * cc, int time_now) {
+//void TSPRandom::calculateTSP(std::vector<CoordCluster *> &cv, int time_now) {
+	//for (auto& c : cv) {
+		cc->pointsTSP_listFinal.clear();
+		//c->pointsNoTSP_listFinal.clear();
 
-		for (auto& s : c->pointsList) {
-			c->pointsTSP_listFinal.push_back(s);
+		for (auto& s : cc->pointsList) {
+			cc->pointsTSP_listFinal.push_back(s);
 		}
-	}
+	//}
 }

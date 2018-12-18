@@ -14,7 +14,7 @@ class ClusteringRRobinMinimumLoss: public Clustering {
 public:
 	ClusteringRRobinMinimumLoss();
 
-	virtual void cluster(std::vector<CoordCluster *> &cv, std::list<Sensor *> &sl, int time_now);
+	virtual void cluster(std::vector<CoordCluster *> &cv, std::list<Sensor *> &sl, int time_now, int uav_id = -1);
 };
 
 #endif /* CLUSTERING_CLUSTERINGRROBINMINIMUMLOSS_H_ */

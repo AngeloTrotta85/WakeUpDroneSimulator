@@ -14,7 +14,8 @@ class TSPNoFullRandom: public TSP {
 public:
 	TSPNoFullRandom();
 
-	virtual void calculateTSP(std::vector<CoordCluster *> &cv, int time_now);
+	//virtual void calculateTSP(std::vector<CoordCluster *> &cv, int time_now);
+	virtual void calculateTSP(CoordCluster *cc, int time_now);
 };
 
 #endif /* TSP_TSPNOFULLRANDOM_H_ */

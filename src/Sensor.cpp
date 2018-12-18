@@ -91,3 +91,6 @@ void Sensor::printLogsSensors (std::list<Sensor *> &sl, int timeNow) {
 	}
 }
 
+void Sensor::update_energy(void) {
+
+}

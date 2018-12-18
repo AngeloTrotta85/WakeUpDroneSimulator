@@ -18,13 +18,15 @@ int UAV::idUAVGen = 0;
 
 UAV::UAV(MyCoord recCoord, double re) {
 	recharge_coord = recCoord;
-	residual_energy = re;
+	max_energy = residual_energy = re;
+	state = IDLE;
 	id = idUAVGen++;
 }
 
 UAV::UAV(MyCoord recCoord, double re, int id_new) {
 	recharge_coord = recCoord;
-	residual_energy = re;
+	max_energy = residual_energy = re;
+	state = IDLE;
 	id = id_new;
 }
 
@@ -67,3 +69,13 @@ void UAV::writeOnFileUAVs(std::string fn, std::list<UAV *> pointList) {
 		fout.close();
 	}
 }
+
+
+void UAV::move(void) {
+
+}
+
+void UAV::update_energy(void) {
+
+}
+

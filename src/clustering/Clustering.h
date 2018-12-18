@@ -15,7 +15,7 @@ public:
 	Clustering() {};
 	virtual ~Clustering() {};
 
-	virtual void cluster(std::vector<CoordCluster *> &cv, std::list<Sensor *> &sl, int time_now) {};
+	virtual void cluster(std::vector<CoordCluster *> &cv, std::list<Sensor *> &sl, int time_now, int uav_id = -1) {};
 };
 
 #endif /* CLUSTERING_CLUSTERING_H_ */

@@ -22,7 +22,7 @@ public:
 	std::list<Sensor *> pointsList;
 	std::list<Sensor *> pointsList_bkp;
 	std::list<Sensor *> pointsTSP_listFinal;
-	std::list<Sensor *> pointsNoTSP_listFinal;
+	//std::list<Sensor *> pointsNoTSP_listFinal;
 	MyCoord *clusterHead;
 	UAV *clusterUAV;
 	int clusterID;

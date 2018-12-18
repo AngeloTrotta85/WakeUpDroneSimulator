@@ -14,23 +14,24 @@ TSPNoFullRandom::TSPNoFullRandom() {
 
 }
 
-void TSPNoFullRandom::calculateTSP(std::vector<CoordCluster *> &cv, int time_now) {
-	for (auto& c : cv) {
-		c->pointsTSP_listFinal.clear();
-		c->pointsNoTSP_listFinal.clear();
+void TSPNoFullRandom::calculateTSP(CoordCluster *cc, int time_now) {
+//void TSPNoFullRandom::calculateTSP(std::vector<CoordCluster *> &cv, int time_now) {
+	//for (auto& c : cv) {
+		cc->pointsTSP_listFinal.clear();
+		//c->pointsNoTSP_listFinal.clear();
 
-		int r_tsp = RandomGenerator::getInstance().getIntUniform(1.0, c->pointsList.size() - 1);
+		int r_tsp = RandomGenerator::getInstance().getIntUniform(1.0, cc->pointsList.size() - 1);
 
 		//cout << "noFullRandom_tsp: generating " << r_tsp
 
-		for (auto& s : c->pointsList) {
+		for (auto& s : cc->pointsList) {
 			if (r_tsp > 0) {
-				c->pointsTSP_listFinal.push_back(s);
+				cc->pointsTSP_listFinal.push_back(s);
 			}
 			else {
-				c->pointsNoTSP_listFinal.push_back(s);
+				//c->pointsNoTSP_listFinal.push_back(s);
 			}
 			--r_tsp;
 		}
-	}
+	//}
 }

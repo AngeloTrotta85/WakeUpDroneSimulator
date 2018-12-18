@@ -58,6 +58,9 @@ public:
 	int getEndTime() const { return end_time; }
 	int getSimulationTime() const { return simulation_time; }
 
+protected:
+	void cluster_and_tour(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &sensList, CoordCluster *actClust);
+
 private:
 	int simulation_time;
 	int end_time;

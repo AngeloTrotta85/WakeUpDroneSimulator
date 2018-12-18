@@ -95,7 +95,36 @@ void Simulator::finish() {
 void Simulator::run(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &sensList) {
 	while ((end_time < 0) || (simulation_time < end_time)) {
 
+		for (auto& c : clustVec) {
+			switch (c->clusterUAV->state) {
+			case UAV::IDLE:
+				cluster_and_tour(clustVec, sensList, c);
+				break;
+
+			case UAV::RECHARGING:
+				c->pointsTSP_listFinal.clear();
+				break;
+
+			default:
+				break;
+			}
+
+			c->clusterUAV->move();
+			c->clusterUAV->update_energy();
+		}
+
+		for (auto& s: sensList) {
+			s->update_energy();
+		}
+
+		break;  //TODO remove
+
 		++simulation_time;
 	}
+}
+
+void Simulator::cluster_and_tour(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &sensList, CoordCluster *actClust) {
+	clust->cluster(clustVec, sensList, simulation_time, actClust->clusterUAV->id);
+	tsp->calculateTSP(actClust, simulation_time);
 }
 

@@ -14,7 +14,7 @@ ClusteringKMeans::ClusteringKMeans() {
 
 }
 
-void ClusteringKMeans::cluster(std::vector<CoordCluster *> &cv, std::list<Sensor *> &sl, int time_now) {
+void ClusteringKMeans::cluster(std::vector<CoordCluster *> &cv, std::list<Sensor *> &sl, int time_now, int uav_id) {
 	bool changed = true;
 	int nIter = 200;
 

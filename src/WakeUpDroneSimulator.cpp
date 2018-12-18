@@ -43,10 +43,10 @@ const char* COLOR_LIST_10[] = {
 		"gold",
 		"magenta",
 		"brown",
-		"black",
 		"darkorange",
 		"salmon",
-		"greenyellow"
+		"greenyellow",
+		"black"
 };
 
 class InputParser{
@@ -87,6 +87,14 @@ void generateDOTfile(std::string outFileName, std::vector<CoordCluster *> &clust
 				<< "P11 [pos = \"" << sSize << "," << sSize << "!\"]"
 				<< endl << endl;
 
+		for (auto& s : sensList) {
+			double sLossFull = Loss::getInstance().calculate_loss_full(s, timeNow, sensList);
+			double actSize = pSize * (2 - sLossFull);
+			fout << "B" << s->id << " [shape=\"point\" color=\"" << "grey"
+					<< "\" pos=\"" << s->coord.x << "," << s->coord.y << "!\" width="
+					<< actSize << ", height=" << actSize << "]" << endl;
+		}
+
 		for (int i = 0; i < (int) clustVec.size(); i++) {
 			std::string color = std::string(COLOR_LIST_10[i%10]);
 
@@ -96,7 +104,7 @@ void generateDOTfile(std::string outFileName, std::vector<CoordCluster *> &clust
 			fout << "C" << clustVec[i]->clusterUAV->id << " [shape=\"diamond\" color=\"" << color << "\" pos=\""
 					<< clustVec[i]->clusterHead->x << "," << clustVec[i]->clusterHead->y << "!\" width=" << pSize*2 << ", height=" << pSize*2 << "]" << endl;
 
-			for (auto& p : clustVec[i]->pointsList) {
+			for (auto& p : clustVec[i]->pointsTSP_listFinal) {
 				double sLossFull = Loss::getInstance().calculate_loss_full(p, timeNow, sensList);
 				//double sLossLast = calculate_loss_last(p, timeNow, sensList);
 				//double sLossEnergy = calculate_loss_energy(p, timeNow, sensList);
@@ -109,10 +117,10 @@ void generateDOTfile(std::string outFileName, std::vector<CoordCluster *> &clust
 				//		<< " has loss correlation: " << sLossCorr
 				//		<< endl;
 
-				double sSize = pSize * (2 - sLossFull);
+				double actSize = pSize * (2 - sLossFull);
 				fout << "S" << p->id << " [shape=\"point\" color=\"" << color
 						<< "\" pos=\"" << p->coord.x << "," << p->coord.y << "!\" width="
-						<< sSize << ", height=" << sSize << "]" << endl;
+						<< actSize << ", height=" << actSize << "]" << endl;
 
 				/*if (i == maxIdx) {
 					fout << "S" << count << "_rad [shape=\"circle\" color=\"" << "black" << "\" style=\"dotted\" label=\"\" pos=\""

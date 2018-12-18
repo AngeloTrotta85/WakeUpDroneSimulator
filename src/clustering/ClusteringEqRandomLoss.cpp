@@ -15,7 +15,7 @@ ClusteringEqRandomLoss::ClusteringEqRandomLoss() {
 
 }
 
-void ClusteringEqRandomLoss::cluster(std::vector<CoordCluster *> &cv, std::list<Sensor *> &sl, int time_now) {
+void ClusteringEqRandomLoss::cluster(std::vector<CoordCluster *> &cv, std::list<Sensor *> &sl, int time_now, int uav_id) {
 	unsigned int n4cluster = floor(double(sl.size()) / double(cv.size()));
 	unsigned int remainingP = sl.size() - (cv.size() * n4cluster);
 

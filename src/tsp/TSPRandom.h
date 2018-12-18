@@ -14,7 +14,8 @@ class TSPRandom: public TSP {
 public:
 	TSPRandom();
 
-	virtual void calculateTSP(std::vector<CoordCluster *> &cv, int time_now);
+	//virtual void calculateTSP(std::vector<CoordCluster *> &cv, int time_now);
+	virtual void calculateTSP(CoordCluster *cc, int time_now);
 };
 
 #endif /* TSP_TSPRANDOM_H_ */

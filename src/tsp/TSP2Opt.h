@@ -10,14 +10,16 @@
 
 #include "TSP.h"
 
+#ifndef TSP_UAV_CODE
 #define TSP_UAV_CODE 100000
+#endif
 
 class TSP2Opt: public TSP {
 public:
 	TSP2Opt();
 
 	//virtual void calculateTSP(std::vector<CoordCluster *> &cv, int time_now);
-	virtual void calculateTSP(CoordCluster *cc, int time_now);
+	virtual void calculateTSP(CoordCluster *cc, std::list<Sensor *> &sl, int time_now);
 
 
 };

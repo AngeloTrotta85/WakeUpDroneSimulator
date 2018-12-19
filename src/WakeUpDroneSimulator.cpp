@@ -31,6 +31,7 @@
 #include "Readings.h"
 #include "CoordCluster.h"
 #include "Loss.h"
+#include "Generic.h"
 #include "Simulator.h"
 
 using namespace std;
@@ -253,6 +254,7 @@ int main(int argc, char **argv) {
 		a = atof(costant_alpha.c_str());
 	}
 
+	Generic::getInstance().init();
 	Loss::getInstance().init(kd, kt, ke, a);
 
 	clustersVec.resize(uavsList.size(), nullptr);

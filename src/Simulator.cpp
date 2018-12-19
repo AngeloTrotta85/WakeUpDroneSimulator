@@ -17,6 +17,7 @@
 #include "tsp/TSPRandom.h"
 #include "tsp/TSPNoFullRandom.h"
 #include "tsp/TSP2Opt.h"
+#include "tsp/TSP2OptEnergy.h"
 
 using namespace std;
 
@@ -76,6 +77,9 @@ void Simulator::setTSPAlgo(std::string algotype_tsp) {
 		else if (algotype_tsp.compare("tsp2opt") == 0) {
 			tsp = new TSP2Opt(); // 2-opt algorithm
 		}
+		else if (algotype_tsp.compare("tsp2optE") == 0) {
+			tsp = new TSP2OptEnergy(); // 2-opt algorithm with energy constraint
+		}
 		else {
 			cerr << "Unknown algotype for tsp: \"" << algotype_tsp << "\". Using default full random TSP" << endl;
 			tsp = new TSPRandom(); //full random TSP
@@ -124,7 +128,10 @@ void Simulator::run(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &
 }
 
 void Simulator::cluster_and_tour(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &sensList, CoordCluster *actClust) {
+
+	actClust->pointsTSP_listFinal.clear();
 	clust->cluster(clustVec, sensList, simulation_time, actClust->clusterUAV->id);
-	tsp->calculateTSP(actClust, simulation_time);
+
+	tsp->calculateTSP(actClust, sensList, simulation_time);
 }
 

@@ -32,12 +32,9 @@ UAV::UAV(MyCoord recCoord, double re, int id_new) {
 
 void UAV::generateRandomUAVs(std::list<UAV *> &pl, int ss, int nu) {
 	for (int i : boost::irange(0, nu)) { // i goes from 0 to nu-1
-		std::uniform_real_distribution<double> uniform_distribution(0.0, ss);
-		std::normal_distribution<double> n_distribution(100000.0,5000.0);
-
 		UAV *newU = new UAV(
 					MyCoord(RandomGenerator::getInstance().getRealUniform(0, ss), RandomGenerator::getInstance().getRealUniform(0, ss)),
-					RandomGenerator::getInstance().getRealNormal(10000, 5000)
+					RandomGenerator::getInstance().getRealNormal(100000, 5000)
 				);
 		pl.push_back(newU);
 		std::cout << "UAV: " << i << " --> " << newU->recharge_coord << std::endl;

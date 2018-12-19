@@ -12,7 +12,7 @@ TSPRandom::TSPRandom() {
 
 }
 
-void TSPRandom::calculateTSP(CoordCluster * cc, int time_now) {
+void TSPRandom::calculateTSP(CoordCluster * cc, std::list<Sensor *> &sl, int time_now) {
 //void TSPRandom::calculateTSP(std::vector<CoordCluster *> &cv, int time_now) {
 	//for (auto& c : cv) {
 		cc->pointsTSP_listFinal.clear();

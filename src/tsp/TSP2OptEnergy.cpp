@@ -5,46 +5,120 @@
  *      Author: angelo
  */
 
-#include "TSP2Opt.h"
+#include "TSP2OptEnergy.h"
+#include "../Loss.h"
+#include "../Generic.h"
 
 using namespace std;
 
-TSP2Opt::TSP2Opt() {
+TSP2OptEnergy::TSP2OptEnergy() {
 	// TODO Auto-generated constructor stub
 
 }
 
-void TSP2Opt::calculateTSP(CoordCluster *cc, std::list<Sensor *> &sl, int time_now) {
+void TSP2OptEnergy::calculateCosts1Edge(TSP2OptEnergyEdge *e, bool forceWakeUp, double &time, double &energy) {
+	time = 0;
+	energy = 0;
+
+	time += Generic::getInstance().getTime2Travel(e->first->coord, e->second->coord);
+	energy += Generic::getInstance().getEnergy2Travel(e->first->coord, e->second->coord);
+
+	if ((e->second->id != TSP_UAV_CODE) || forceWakeUp) {	// Intermediate arc
+		time += Generic::getInstance().getTime2WakeRead(e->second->coord, e->second->coord);
+		energy += Generic::getInstance().getEnergy2WakeRead(e->second->coord, e->second->coord);
+	}
+}
+
+void TSP2OptEnergy::calculateCosts(list<TSP2OptEnergyEdge *> edgesTSP, double &time, double &energy) {
+	time = 0;
+	energy = 0;
+
+	for (auto& e : edgesTSP) {
+		double actTime, actEnergy;
+
+		calculateCosts1Edge(e, false, actTime, actEnergy);
+
+		time += actTime;
+		energy += actEnergy;
+	}
+}
+
+void TSP2OptEnergy::calculateTSP(CoordCluster *cc, std::list<Sensor *> &sl, int time_now) {
 //void TSP2Opt::calculateTSP(std::vector<CoordCluster *> &cv, int time_now) {
 	Sensor *uavDummySensor = new Sensor(cc->clusterUAV->recharge_coord, 1, TSP_UAV_CODE);
-	list<TSP2OptEdge *> edges;
-	list<TSP2OptEdge *> finaledges;
-	list<TSP2OptEdge *> finalcircuit;
 
 	cc->pointsTSP_listFinal.clear();
-	cout << endl << "Calculating TSP for UAV" << cc->clusterUAV->id << ". The sensors are:";
-	for (auto& ss : cc->pointsList) {
-		cout << " S" << ss->id;
-	}
-	cout << endl;
 
-	auto it1 = cc->pointsList.begin();
-	while (it1 != cc->pointsList.end()) {
+	list< pair<Sensor *, double> > allSensors;
+	for (auto& s : cc->pointsList) {
+		double c = Loss::getInstance().calculate_loss_full(s, time_now, sl);
+		allSensors.push_back(make_pair(s, c));
+	}
+	allSensors.sort(sortCosts);
+
+	list<Sensor *> chosenSensors;
+	list<TSP2OptEnergyEdge *> chosenCircuit;
+
+	chosenSensors.push_back(uavDummySensor);
+
+	for (auto& as : allSensors) {
+		double t, e;
+
+		// create a temporary list with the chosen sensors + one
+		list<Sensor *> tmpSensors;
+		for (auto& tmpS : chosenSensors) {
+			tmpSensors.push_back(tmpS);
+		}
+		tmpSensors.push_back(as.first);
+
+		list<TSP2OptEnergyEdge *> tmpcircuit;
+		calculateTSP_subset(uavDummySensor, tmpSensors, tmpcircuit);
+		calculateCosts(tmpcircuit, t, e);
+		if (e < cc->clusterUAV->residual_energy) {
+			chosenSensors.push_back(as.first);
+
+			chosenCircuit.clear();
+			for (auto& tmpC : tmpcircuit) {
+				chosenCircuit.push_back(tmpC);
+			}
+		}
+	}
+
+	cc->pointsTSP_listFinal.clear();
+	for (auto& fe : chosenCircuit) {
+		if (fe->second->id != TSP_UAV_CODE) {
+			cc->pointsTSP_listFinal.push_back(fe->second);
+		}
+	}
+}
+
+void TSP2OptEnergy::calculateTSP_subset(Sensor *uavDummySensor , list<Sensor *> &sList, list<TSP2OptEnergyEdge *> &fCircuit) {
+	list<TSP2OptEnergyEdge *> edges;
+	list<TSP2OptEnergyEdge *> finaledges;
+	list<TSP2OptEnergyEdge *> finalcircuit;
+	//cout << endl << "Calculating TSP for UAV" << cc->clusterUAV->id << ". The sensors are:";
+	//for (auto& ss : cc->pointsList) {
+	//	cout << " S" << ss->id;
+	//}
+	//cout << endl;
+
+	auto it1 = sList.begin();
+	while (it1 != sList.end()) {
 		auto it2 = it1;
 		it2++;
-		while (it2 != cc->pointsList.end()) {
-			double w = (*it1)->coord.distance((*it2)->coord);
-			edges.push_back(new TSP2OptEdge(*it1, *it2, w));
+		while (it2 != sList.end()) {
+			double t;
+			TSP2OptEnergyEdge *ne = new TSP2OptEnergyEdge(*it1, *it2, 0);
+
+			calculateCosts1Edge(ne, true, t, ne->weight);
+			edges.push_back(ne);
+
 			it2++;
 		}
 		it1++;
 	}
-	for (auto& s : cc->pointsList) {
-		double w = s->coord.distance(uavDummySensor->coord);
-		edges.push_back(new TSP2OptEdge(s, uavDummySensor, w));
-	}
 
-	edges.sort(TSP2OptEdge::sortEdges);
+	edges.sort(TSP2OptEnergyEdge::sortEdges);
 
 	//cout << "Edges for this TSP:" << endl;
 	//for (auto& ee : edges) {
@@ -88,21 +162,6 @@ void TSP2Opt::calculateTSP(CoordCluster *cc, std::list<Sensor *> &sl, int time_n
 			e->idTSP = idFirst;
 			finaledges.push_back(e);
 		}
-
-		/*int connected_first = 0;
-		int connected_second = 0;
-		for (auto& fe : finaledges) {
-			if ((e->first->id == fe->first->id) || (e->first->id == fe->second->id)) {
-				connected_first++;
-			}
-			if ((e->second->id == fe->first->id) || (e->second->id == fe->second->id)) {
-				connected_second++;
-			}
-		}
-
-		if ((connected_first < 2) && (connected_second < 2)) {
-			finaledges.push_back(e);
-		}*/
 	}
 
 	//cout << "FINAL Edges for this TSP:" << endl;
@@ -137,18 +196,17 @@ void TSP2Opt::calculateTSP(CoordCluster *cc, std::list<Sensor *> &sl, int time_n
 		for (auto it_fe = finaledges.begin(); it_fe != finaledges.end(); it_fe++) {
 			if (((*it_fe)->first->id == nextS->id) || ((*it_fe)->second->id == nextS->id)) {
 				if ((*it_fe)->first->id == nextS->id){
-					finalcircuit.push_back(new TSP2OptEdge(nextS, (*it_fe)->second, (*it_fe)->weight));
+					finalcircuit.push_back(new TSP2OptEnergyEdge(nextS, (*it_fe)->second, (*it_fe)->weight));
 					nextS = (*it_fe)->second;
 				}
 				else {
-					finalcircuit.push_back(new TSP2OptEdge(nextS, (*it_fe)->first, (*it_fe)->weight));
+					finalcircuit.push_back(new TSP2OptEnergyEdge(nextS, (*it_fe)->first, (*it_fe)->weight));
 					nextS = (*it_fe)->first;
 				}
 
-				if (nextS->id != uavDummySensor->id) {
-					cc->pointsTSP_listFinal.push_back(nextS);
+				//if (nextS->id != uavDummySensor->id) {
 					//cout << "-S" << nextS->id;
-				}
+				//}
 				finaledges.erase(it_fe);
 				break;
 			}
@@ -185,7 +243,7 @@ void TSP2Opt::calculateTSP(CoordCluster *cc, std::list<Sensor *> &sl, int time_n
 					double sumActCost = fe1->first->coord.distance(fe1->second->coord) + fe2->first->coord.distance(fe2->second->coord);
 					double sumSwitch = fe1->first->coord.distance(fe2->first->coord) + fe1->second->coord.distance(fe2->second->coord);
 					if (sumSwitch < sumActCost) {
-						list<TSP2OptEdge *> tmpcircuit;
+						list<TSP2OptEnergyEdge *> tmpcircuit;
 						Sensor *tmp;
 
 						//cout << endl << "TEMP CIRCUIT BEFORE: ";
@@ -232,12 +290,9 @@ void TSP2Opt::calculateTSP(CoordCluster *cc, std::list<Sensor *> &sl, int time_n
 
 	} while (swapMade && ((round--) > 0));
 
-	cc->pointsTSP_listFinal.clear();
 	//cout << " FINAL CIRCUIT2: ";
 	for (auto& fe : finalcircuit) {
-		if (fe->second->id != TSP_UAV_CODE) {
-			cc->pointsTSP_listFinal.push_back(fe->second);
-		}
+		fCircuit.push_back(fe);
 		//cout << " S" << fe->first->id << "-S" << fe->second->id;
 	}
 	//cout << endl;

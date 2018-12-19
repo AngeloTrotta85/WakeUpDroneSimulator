@@ -19,6 +19,7 @@ void ClusteringRRobinMinimumLoss::cluster(std::vector<CoordCluster *> &cv, std::
 	std::vector<Sensor *> sl_bkp_v;
 	std::list<Sensor *> sl_bkp;
 	unsigned int round = 1;
+
 	for (auto& s : sl) {
 		bool s_found = false;
 		for (auto& cc : cv) {

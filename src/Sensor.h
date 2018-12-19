@@ -31,6 +31,7 @@ public:
 	MyCoord coord;
 	double residual_energy;
 	std::list<Readings *> mySensorReadings;
+	bool bookedReading;
 	int id;
 	static int idSensGen;
 };

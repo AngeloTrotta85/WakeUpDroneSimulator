@@ -14,7 +14,7 @@ TSPNoFullRandom::TSPNoFullRandom() {
 
 }
 
-void TSPNoFullRandom::calculateTSP(CoordCluster *cc, int time_now) {
+void TSPNoFullRandom::calculateTSP(CoordCluster *cc, std::list<Sensor *> &sl, int time_now) {
 //void TSPNoFullRandom::calculateTSP(std::vector<CoordCluster *> &cv, int time_now) {
 	//for (auto& c : cv) {
 		cc->pointsTSP_listFinal.clear();

@@ -21,12 +21,14 @@ int Sensor::idSensGen = 0;
 Sensor::Sensor(MyCoord sensCoord, double re) {
 	coord = sensCoord;
 	residual_energy = re;
+	bookedReading = false;
 	id = idSensGen++;
 }
 
 Sensor::Sensor(MyCoord sensCoord, double re, int id_new) {
 	coord = sensCoord;
 	residual_energy = re;
+	bookedReading = false;
 	id = id_new;
 }
 

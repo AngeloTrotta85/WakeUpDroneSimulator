@@ -19,7 +19,7 @@ public:
 		return instance;
 	}
 private:
-	Generic(void);         // Constructor? (the {} brackets) are needed here.
+	Generic(void){};         // Constructor? (the {} brackets) are needed here.
 
 	// C++ 11
 	// =======
@@ -37,15 +37,58 @@ public:
 
 
 public:
-	void init(void) {
-
+	void init(int ts) {
+		timeSlot = ts;
+	}
+	void setSensorParam(double initEnergySensor, double sensorSelfDischarge, double eON, double eBOOT) {
+		initSensorEnergy = initEnergySensor;
+		sensorBatterySelfDischarge = sensorSelfDischarge;
+		energyON = eON;
+		energyBOOT = eBOOT;
+	}
+	void setUAVParam(double initEnergyUAV, double flightAltitude, double maxVel, double motorPower, double rechargePower, double time2read, double energy2read) {
+		initUAVEnergy = initEnergyUAV;
+		flightAltitudeUAV = flightAltitude;
+		maxVelocity = maxVel;
+		singleMotorPowerUAV = motorPower;
+		rechargeStation_power = rechargePower;
+		uavTime2Read = time2read;
+		uavEnergy2Read = energy2read;
+	}
+	void setWakeUpParam(double wakeupPower, double wakeupFrequency, double energy2wakeup, double gTx, double gRx) {
+		wakeupTxPower = wakeupPower;
+		wakeupTxFrequency = wakeupFrequency;
+		energyToWakeUp = energy2wakeup;
+		antennaGainTx = gTx;
+		antennaGainRx = gRx;
 	}
 
 	double getTime2Travel(MyCoord start, MyCoord end);
 	double getEnergy2Travel(MyCoord start, MyCoord end);
 
+	double getPrx_watt(MyCoord uavCoord, MyCoord sensorCoord);
+	double getTime2Wake(MyCoord uavCoord, MyCoord sensorCoord);
 	double getTime2WakeRead(MyCoord uavCoord, MyCoord sensorCoord);
 	double getEnergy2WakeRead(MyCoord uavCoord, MyCoord sensorCoord);
+
+public:
+	int timeSlot;
+	double initSensorEnergy;
+	double initUAVEnergy;
+	double flightAltitudeUAV;
+	double maxVelocity;
+	double uavTime2Read;
+	double uavEnergy2Read;
+	double singleMotorPowerUAV;
+	double rechargeStation_power;
+	double sensorBatterySelfDischarge;
+	double energyON;
+	double energyBOOT;
+	double wakeupTxPower;
+	double wakeupTxFrequency;
+	double energyToWakeUp;
+	double antennaGainTx;
+	double antennaGainRx;
 };
 
 #endif /* GENERIC_H_ */

@@ -7,10 +7,15 @@
 
 #include "CoordCluster.h"
 
+#include "Generic.h"
+
 CoordCluster::CoordCluster (UAV *uav, int cID){
 	clusterID = cID;
 	clusterHead = new MyCoord(uav->recharge_coord.x, uav->recharge_coord.y);
 	clusterUAV = uav;
+
+	startingSensor = nextSensor = nullptr;
+	timeSpentInWakeRead = 0;
 }
 
 
@@ -39,4 +44,6 @@ bool CoordCluster::checkNotChange(void) {
 	}
 	return (ris && (pointsList.size() == pointsList_bkp.size()));
 }
+
+
 

@@ -6,6 +6,7 @@
  */
 
 #include "Simulator.h"
+#include "Generic.h"
 
 #include "clustering/ClusteringEqRandomLoss.h"
 #include "clustering/ClusteringKMeans.h"
@@ -18,6 +19,10 @@
 #include "tsp/TSPNoFullRandom.h"
 #include "tsp/TSP2Opt.h"
 #include "tsp/TSP2OptEnergy.h"
+
+#ifndef TSP_UAV_CODE
+#define TSP_UAV_CODE 100000
+#endif
 
 using namespace std;
 
@@ -97,38 +102,124 @@ void Simulator::finish() {
 }
 
 void Simulator::run(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &sensList) {
+	int timeSlot = Generic::getInstance().timeSlot;
 	while ((end_time < 0) || (simulation_time < end_time)) {
 
+		cout << "Simulation time: " << simulation_time << endl;
+
+		// move and update the UAVs
 		for (auto& c : clustVec) {
 			switch (c->clusterUAV->state) {
 			case UAV::IDLE:
 				cluster_and_tour(clustVec, sensList, c);
+
+				//set the chosen sensors as booked
+				for (auto& s: c->pointsTSP_listFinal) {
+					s->uavBookedReading[c->clusterUAV->id] = true;
+				}
+
+				if (c->pointsTSP_listFinal.size() > 0) {		// IDLE but calculated TSP... let's move!
+					c->clusterUAV->state = UAV::MOVING;
+
+					c->startingSensor = nullptr;
+					c->nextSensor = *c->pointsTSP_listFinal.begin();
+				}
+
+				break;
+
+			case UAV::MOVING:
+				c->clusterUAV->residual_energy -= Generic::getInstance().singleMotorPowerUAV * 4.0 * Generic::getInstance().timeSlot;
+				if ((c->nextSensor == nullptr) && (c->clusterUAV->actual_coord == c->clusterUAV->recharge_coord)) {
+					//arrived back to the charging station
+					c->clusterUAV->state = UAV::RECHARGING;
+
+					//reset the variables
+					c->nextSensor = c->startingSensor = nullptr;
+
+					//unset the chosen sensors as booked
+					for (auto& s: c->pointsTSP_listFinal) {
+						s->uavBookedReading[c->clusterUAV->id] = false;
+					}
+					c->pointsTSP_listFinal.clear();
+				}
+				else if ((c->nextSensor != nullptr) && (c->clusterUAV->actual_coord == c->nextSensor->coord)) {
+					//arrived to destination sensor
+					c->clusterUAV->state = UAV::WAKINGUP_READING;
+
+					c->timeSpentInWakeRead = 0;	//reset variable
+				}
+				else {
+					MyCoord endP;
+					if (c->nextSensor == nullptr) endP = c->clusterUAV->recharge_coord;
+					else endP = c->nextSensor->coord;
+
+					double dist2dest = c->clusterUAV->actual_coord.distance(endP);
+					double oneStepDist = ((double) Generic::getInstance().timeSlot) * Generic::getInstance().maxVelocity;
+					if (oneStepDist >= dist2dest) {
+						// I will arrive to destination
+						c->clusterUAV->actual_coord = endP;
+					}
+					else {
+						MyCoord unit = endP - c->clusterUAV->actual_coord;
+						unit.normalize();
+						unit *= oneStepDist;
+						c->clusterUAV->actual_coord += unit;
+					}
+				}
 				break;
 
 			case UAV::RECHARGING:
-				c->pointsTSP_listFinal.clear();
+
+				c->clusterUAV->residual_energy += Generic::getInstance().rechargeStation_power * ((double) Generic::getInstance().timeSlot);
+				if (c->clusterUAV->residual_energy >= c->clusterUAV->max_energy) {
+					c->clusterUAV->residual_energy = c->clusterUAV->max_energy;
+					c->clusterUAV->state = UAV::IDLE;
+				}
 				break;
 
-			default:
+			case UAV::WAKINGUP_READING:
+				c->clusterUAV->residual_energy -= Generic::getInstance().singleMotorPowerUAV * 4.0 * Generic::getInstance().timeSlot;
+				if (c->timeSpentInWakeRead >= Generic::getInstance().getTime2WakeRead(c->clusterUAV->actual_coord, c->nextSensor->coord)) {
+					// ok, finished
+					c->clusterUAV->state = UAV::MOVING;
+
+					//remove at the end the wakeup+reading energy
+					c->clusterUAV->residual_energy -= Generic::getInstance().getEnergy2WakeRead(c->clusterUAV->actual_coord, c->nextSensor->coord);
+
+					c->timeSpentInWakeRead = 0;
+
+					c->startingSensor = c->nextSensor;
+					for (auto it = c->pointsTSP_listFinal.begin(); it != c->pointsTSP_listFinal.end(); it++) {
+						if ((*it)->id == c->nextSensor->id) {
+							it++;
+							if (it != c->pointsTSP_listFinal.end()) {
+								c->nextSensor = *it;
+							}
+							else {
+								c->nextSensor = nullptr;
+							}
+							break;
+						}
+					}
+				}
+				else {
+					c->timeSpentInWakeRead += Generic::getInstance().timeSlot;
+				}
 				break;
 			}
-
-			c->clusterUAV->move();
-			c->clusterUAV->update_energy();
 		}
 
 		for (auto& s: sensList) {
 			s->update_energy();
 		}
 
-		break;  //TODO remove
+		if (simulation_time > 100) break;  //TODO remove
 
-		++simulation_time;
+		simulation_time += timeSlot;
 	}
 }
 
 void Simulator::cluster_and_tour(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &sensList, CoordCluster *actClust) {
-
 	actClust->pointsTSP_listFinal.clear();
 	clust->cluster(clustVec, sensList, simulation_time, actClust->clusterUAV->id);
 

@@ -13,18 +13,19 @@
 
 #include "UAV.h"
 #include "RandomGenerator.h"
+#include "Generic.h"
 
 int UAV::idUAVGen = 0;
 
 UAV::UAV(MyCoord recCoord, double re) {
-	recharge_coord = recCoord;
+	actual_coord = recharge_coord = recCoord;
 	max_energy = residual_energy = re;
 	state = IDLE;
 	id = idUAVGen++;
 }
 
 UAV::UAV(MyCoord recCoord, double re, int id_new) {
-	recharge_coord = recCoord;
+	actual_coord = recharge_coord = recCoord;
 	max_energy = residual_energy = re;
 	state = IDLE;
 	id = id_new;
@@ -34,10 +35,10 @@ void UAV::generateRandomUAVs(std::list<UAV *> &pl, int ss, int nu) {
 	for (int i : boost::irange(0, nu)) { // i goes from 0 to nu-1
 		UAV *newU = new UAV(
 					MyCoord(RandomGenerator::getInstance().getRealUniform(0, ss), RandomGenerator::getInstance().getRealUniform(0, ss)),
-					RandomGenerator::getInstance().getRealNormal(100000, 5000)
+					RandomGenerator::getInstance().getRealNormal(Generic::getInstance().initUAVEnergy, Generic::getInstance().initUAVEnergy/100.0)
 				);
 		pl.push_back(newU);
-		std::cout << "UAV: " << i << " --> " << newU->recharge_coord << std::endl;
+		std::cout << "UAV: " << i << " --> " << newU->recharge_coord << " - Energy:" << newU->max_energy << std::endl;
 	}
 }
 
@@ -67,12 +68,4 @@ void UAV::writeOnFileUAVs(std::string fn, std::list<UAV *> pointList) {
 	}
 }
 
-
-void UAV::move(void) {
-
-}
-
-void UAV::update_energy(void) {
-
-}
 

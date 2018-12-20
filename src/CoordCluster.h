@@ -26,6 +26,11 @@ public:
 	MyCoord *clusterHead;
 	UAV *clusterUAV;
 	int clusterID;
+
+	//variables for movements
+	Sensor *startingSensor;
+	Sensor *nextSensor;
+	double timeSpentInWakeRead;
 };
 
 #endif /* COORDCLUSTER_H_ */

@@ -15,20 +15,19 @@
 #include "Readings.h"
 #include "RandomGenerator.h"
 #include "Loss.h"
+#include "Generic.h"
 
 int Sensor::idSensGen = 0;
 
 Sensor::Sensor(MyCoord sensCoord, double re) {
 	coord = sensCoord;
 	residual_energy = re;
-	bookedReading = false;
 	id = idSensGen++;
 }
 
 Sensor::Sensor(MyCoord sensCoord, double re, int id_new) {
 	coord = sensCoord;
 	residual_energy = re;
-	bookedReading = false;
 	id = id_new;
 }
 
@@ -36,7 +35,7 @@ void Sensor::generateRandomSensors(std::list<Sensor *> &pl, int ss, int ns) {
 	for (int i : boost::irange(0, ns)) { // i goes from 0 to ns-1
 		Sensor *newS = new Sensor(
 				MyCoord(RandomGenerator::getInstance().getRealUniform(0, ss), RandomGenerator::getInstance().getRealUniform(0, ss)),
-				RandomGenerator::getInstance().getRealNormal(10000, 1000)
+				RandomGenerator::getInstance().getRealNormal(Generic::getInstance().initSensorEnergy, Generic::getInstance().initSensorEnergy / 50.0)
 		);
 		pl.push_back(newS);
 		std::cout << "Sensor: " << i << " --> " << newS->coord << " - Energy: " << newS->residual_energy << std::endl;
@@ -91,6 +90,17 @@ void Sensor::printLogsSensors (std::list<Sensor *> &sl, int timeNow) {
 
 		count++;
 	}
+}
+
+bool Sensor::isBooked(void) {
+	bool ris = false;
+	for (auto& b : uavBookedReading) {
+		if (b.second == true) {
+			ris = true;
+			break;
+		}
+	}
+	return ris;
 }
 
 void Sensor::update_energy(void) {

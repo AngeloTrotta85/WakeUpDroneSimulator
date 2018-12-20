@@ -102,8 +102,8 @@ void generateDOTfile(std::string outFileName, std::vector<CoordCluster *> &clust
 			fout << "U" << clustVec[i]->clusterUAV->id << " [shape=\"star\" color=\"" << color << "\" pos=\""
 					<< clustVec[i]->clusterUAV->recharge_coord.x << "," << clustVec[i]->clusterUAV->recharge_coord.y << "!\" width=" << pSize*3 << ", height=" << pSize*3 << "]" << endl;
 
-			fout << "C" << clustVec[i]->clusterUAV->id << " [shape=\"diamond\" color=\"" << color << "\" pos=\""
-					<< clustVec[i]->clusterHead->x << "," << clustVec[i]->clusterHead->y << "!\" width=" << pSize*2 << ", height=" << pSize*2 << "]" << endl;
+			//fout << "C" << clustVec[i]->clusterUAV->id << " [shape=\"diamond\" color=\"" << color << "\" pos=\""
+			//		<< clustVec[i]->clusterHead->x << "," << clustVec[i]->clusterHead->y << "!\" width=" << pSize*2 << ", height=" << pSize*2 << "]" << endl;
 
 			for (auto& p : clustVec[i]->pointsTSP_listFinal) {
 				double sLossFull = Loss::getInstance().calculate_loss_full(p, timeNow, sensList);
@@ -161,14 +161,38 @@ int main(int argc, char **argv) {
 	std::vector<CoordCluster *> clustersVec;
 
 	// default values
-	int scenarioSize = 100;
+	int scenarioSize = 10000;
 	int nSensors = 40;
 	int nUAV = 3;
-	int time_N = 100;
+	int time_N = 3600;
+	int timeSlot = 1;
+
 	double kd = 0.08;
 	double kt = 0.02;
 	double ke = 0.0005;
 	double a = 0.5;
+
+	// UAV parameters
+	double initEnergyUAV = 119880;  	// Joule -> 3000mAh * 11.1Volt * 3.6
+	double motorPower = 21.7;  			// Watt -> calcolato esempio da "https://www.ecalc.ch/xcoptercalc.php"
+	double rechargePower = 25; 			// Watt
+	double flightAltitude = 5;			// Meters
+	double maxVelocity = 15;			// m/s
+	double time2read = 1;				// seconds
+	double energy2read = 0.0005;		// Joule
+
+	//Sensor parameters
+	double initEnergySensor = 7992;		// Joule -> 600mAh * 3.7Volt * 3.6
+	double sensorSelfDischarge = 3;		// Percentage per month
+	double eON = 0.000494;				// Joule -> from ICC
+	double eBOOT = 0.0075;				// Joule -> from ICC
+
+	//WakeUp
+	double wakeupPower = 0.5;			// Watt -> trasmissione dell'illuminatore	//27dBm
+	double wakeupFreq = 868;			// MHz
+	double gainTx = 6;					// dBi
+	double gainRx = 1;					// dBi
+	double energy2wakeup = 0.00001;		// Joule
 
 	cout << "Wake-up Drone BEGIN!!!" << endl;
 
@@ -185,6 +209,7 @@ int main(int argc, char **argv) {
 	const std::string &seedUser = input.getCmdOption("-seed");
 	const std::string &dotFileOutput = input.getCmdOption("-dot");
 	const std::string &inputTimeSim = input.getCmdOption("-time");
+	const std::string &timeSlot_string = input.getCmdOption("-tSlot");
 
 	const std::string &algotype_clustering = input.getCmdOption("-algoClust");
 	const std::string &algotype_tsp = input.getCmdOption("-algoTSP");
@@ -194,6 +219,24 @@ int main(int argc, char **argv) {
 	const std::string &costant_ke = input.getCmdOption("-ke");
 	const std::string &costant_alpha = input.getCmdOption("-alpha");
 
+	const std::string &energy_UAV = input.getCmdOption("-ieUAV");
+	const std::string &flight_altitude = input.getCmdOption("-h");
+	const std::string &singleMotor_power = input.getCmdOption("-mp");
+	const std::string &rechageStation_power = input.getCmdOption("-recp");
+	const std::string &maxVel = input.getCmdOption("-mVel");
+	const std::string &uavTime2Read = input.getCmdOption("-uT2R");
+	const std::string &uavEnergy2Read = input.getCmdOption("-uE2R");
+
+	const std::string &energy_sensor = input.getCmdOption("-ieSens");
+	const std::string &energy_eon = input.getCmdOption("-eON");
+	const std::string &energy_eboot = input.getCmdOption("-eBOOT");
+	const std::string &sensor_self_discharge = input.getCmdOption("-ssd");
+
+	const std::string &wakeup_tx_power = input.getCmdOption("-wuPTx");
+	const std::string &wakeup_tx_freq = input.getCmdOption("-wuFreq");
+	const std::string &energy_to_wakeup = input.getCmdOption("-e2wu");
+	const std::string &gain_antenna_tx = input.getCmdOption("-gTx");
+	const std::string &gain_antenna_rx = input.getCmdOption("-gRx");
 
 	if (!seedUser.empty()) {
 		int seedR = atoi(seedUser.c_str());
@@ -207,18 +250,84 @@ int main(int argc, char **argv) {
 	if (!scenarioMaxVal.empty()) {
 		scenarioSize = atoi(scenarioMaxVal.c_str());
 	}
-
 	if (!inputNumSensors.empty()) {
 		nSensors = atoi(inputNumSensors.c_str());
 	}
-
 	if (!inputNumUAV.empty()) {
 		nUAV = atoi(inputNumUAV.c_str());
 	}
-
 	if (!inputTimeSim.empty()) {
 		time_N = atoi(inputTimeSim.c_str());
 	}
+	if (!timeSlot_string.empty()) {
+		timeSlot = atoi(timeSlot_string.c_str());
+	}
+	if (!energy_UAV.empty()) {
+		initEnergyUAV = atof(energy_UAV.c_str());
+	}
+	if (!flight_altitude.empty()) {
+		flightAltitude = atof(flight_altitude.c_str());
+	}
+	if (!maxVel.empty()) {
+		maxVelocity = atof(maxVel.c_str());
+	}
+	if (!uavTime2Read.empty()) {
+		time2read = atof(uavTime2Read.c_str());
+	}
+	if (!uavEnergy2Read.empty()) {
+		energy2read = atof(uavEnergy2Read.c_str());
+	}
+	if (!singleMotor_power.empty()) {
+		motorPower = atof(singleMotor_power.c_str());
+	}
+	if (!rechageStation_power.empty()) {
+		rechargePower = atof(rechageStation_power.c_str());
+	}
+	if (!energy_sensor.empty()) {
+		initEnergySensor = atof(energy_sensor.c_str());
+	}
+	if (!energy_eon.empty()) {
+		eON = atof(energy_eon.c_str());
+	}
+	if (!energy_eboot.empty()) {
+		eBOOT = atof(energy_eboot.c_str());
+	}
+	if (!sensor_self_discharge.empty()) {
+		sensorSelfDischarge = atof(sensor_self_discharge.c_str());
+	}
+	if (!wakeup_tx_power.empty()) {
+		wakeupPower = atof(wakeup_tx_power.c_str());
+	}
+	if (!wakeup_tx_freq.empty()) {
+		wakeupFreq = atof(wakeup_tx_freq.c_str());
+	}
+	if (!energy_to_wakeup.empty()) {
+		energy2wakeup = atof(energy_to_wakeup.c_str());
+	}
+	if (!gain_antenna_tx.empty()) {
+		gainTx = atof(gain_antenna_tx.c_str());
+	}
+	if (!gain_antenna_rx.empty()) {
+		gainRx = atof(gain_antenna_rx.c_str());
+	}
+	if (!costant_kd.empty()) {
+		kd = atof(costant_kd.c_str());
+	}
+	if (!costant_kt.empty()) {
+		kt = atof(costant_kt.c_str());
+	}
+	if (!costant_ke.empty()) {
+		ke = atof(costant_ke.c_str());
+	}
+	if (!costant_alpha.empty()) {
+		a = atof(costant_alpha.c_str());
+	}
+
+	Generic::getInstance().init(timeSlot);
+	Generic::getInstance().setSensorParam(initEnergySensor, sensorSelfDischarge, eON, eBOOT);
+	Generic::getInstance().setUAVParam(initEnergyUAV, flightAltitude, maxVelocity, motorPower, rechargePower, time2read, energy2read);
+	Generic::getInstance().setWakeUpParam(wakeupPower, wakeupFreq, energy2wakeup, gainTx, gainRx);
+	Loss::getInstance().init(kd, kt, ke, a);
 
 	if (inputSensorsFileName.empty()) {
 		Sensor::generateRandomSensors(sensorsList, scenarioSize, nSensors);
@@ -240,23 +349,6 @@ int main(int argc, char **argv) {
 		UAV::importUAVsFromFile(inputUAVsFileName, uavsList);
 	}
 
-
-	if (!costant_kd.empty()) {
-		kd = atof(costant_kd.c_str());
-	}
-	if (!costant_kt.empty()) {
-		kt = atof(costant_kt.c_str());
-	}
-	if (!costant_ke.empty()) {
-		ke = atof(costant_ke.c_str());
-	}
-	if (!costant_alpha.empty()) {
-		a = atof(costant_alpha.c_str());
-	}
-
-	Generic::getInstance().init();
-	Loss::getInstance().init(kd, kt, ke, a);
-
 	clustersVec.resize(uavsList.size(), nullptr);
 	int idd = 0;
 	for (auto& uav : uavsList) {
@@ -264,7 +356,7 @@ int main(int argc, char **argv) {
 		++idd;
 	}
 
-	Sensor::printLogsSensors(sensorsList, time_N);
+	//Sensor::printLogsSensors(sensorsList, time_N);
 
 	Simulator::getInstance().init(0, time_N);
 	Simulator::getInstance().setClusteringAlgo(algotype_clustering);

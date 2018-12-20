@@ -44,7 +44,7 @@ void TSP2OptEnergy::calculateCosts(list<TSP2OptEnergyEdge *> edgesTSP, double &t
 }
 
 void TSP2OptEnergy::calculateTSP(CoordCluster *cc, std::list<Sensor *> &sl, int time_now) {
-//void TSP2Opt::calculateTSP(std::vector<CoordCluster *> &cv, int time_now) {
+	double t, e;
 	Sensor *uavDummySensor = new Sensor(cc->clusterUAV->recharge_coord, 1, TSP_UAV_CODE);
 
 	cc->pointsTSP_listFinal.clear();
@@ -61,8 +61,21 @@ void TSP2OptEnergy::calculateTSP(CoordCluster *cc, std::list<Sensor *> &sl, int 
 
 	chosenSensors.push_back(uavDummySensor);
 
-	for (auto& as : allSensors) {
-		double t, e;
+	auto it_as = allSensors.begin();
+	while (it_as != allSensors.end()) {
+		auto as = *it_as;
+	//for (auto& as : allSensors) {
+		bool alreadyChosen = false;
+		for (auto& csc : chosenSensors) {
+			if (csc->id == as.first->id) {
+				alreadyChosen = true;
+				break;
+			}
+		}
+		if (alreadyChosen) {
+			it_as++;
+			continue;
+		}
 
 		// create a temporary list with the chosen sensors + one
 		list<Sensor *> tmpSensors;
@@ -75,14 +88,26 @@ void TSP2OptEnergy::calculateTSP(CoordCluster *cc, std::list<Sensor *> &sl, int 
 		calculateTSP_subset(uavDummySensor, tmpSensors, tmpcircuit);
 		calculateCosts(tmpcircuit, t, e);
 		if (e < cc->clusterUAV->residual_energy) {
-			chosenSensors.push_back(as.first);
+			as.first->uavBookedReading[cc->clusterUAV->id] = true;
 
+			chosenSensors.push_back(as.first);
 			chosenCircuit.clear();
 			for (auto& tmpC : tmpcircuit) {
 				chosenCircuit.push_back(tmpC);
 			}
+
+			for (auto& sss : allSensors) sss.second = Loss::getInstance().calculate_loss_full(sss.first, time_now, sl);
+			allSensors.sort(sortCosts);
+			it_as = allSensors.begin();
+		}
+		else {
+			it_as++;
 		}
 	}
+
+	calculateCosts(chosenCircuit, t, e);
+	cout << "Calculated TSP for UAV" << cc->clusterUAV->id << " having residual energy " << cc->clusterUAV->residual_energy
+			<< "J. Cost: time=" << t<< "sec. Cost: energy=" << e << "J" << std::endl;
 
 	cc->pointsTSP_listFinal.clear();
 	for (auto& fe : chosenCircuit) {

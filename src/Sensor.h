@@ -8,7 +8,7 @@
 #ifndef SENSOR_H_
 #define SENSOR_H_
 
-
+#include <map>
 #include "MyCoord.h"
 
 class Readings;
@@ -19,6 +19,8 @@ public:
 	Sensor(MyCoord sensCoord, double re, int id_new);
 
 	void update_energy(void);
+
+	bool isBooked(void);
 
 public:
 	static void generateRandomSensors(std::list<Sensor *> &pl, int ss, int ns);
@@ -31,7 +33,7 @@ public:
 	MyCoord coord;
 	double residual_energy;
 	std::list<Readings *> mySensorReadings;
-	bool bookedReading;
+	std::map<int, bool> uavBookedReading;
 	int id;
 	static int idSensGen;
 };

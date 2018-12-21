@@ -23,8 +23,8 @@ public:
 	//virtual void calculateTSP(std::vector<CoordCluster *> &cv, int time_now);
 	virtual void calculateTSP(CoordCluster *cc, std::list<Sensor *> &sl, int time_now);
 
-	void calculateCosts1Edge(TSP2OptEnergyEdge *e, bool forceWakeUp, double &time, double &energy);
-	void calculateCosts(std::list<TSP2OptEnergyEdge *> edgesTSP, double &time, double &energy);
+	void calculateCosts1Edge(TSP2OptEnergyEdge *e, bool forceWakeUp, double &time, double &energy, bool log);
+	void calculateCosts(std::list<TSP2OptEnergyEdge *> edgesTSP, double &time, double &energy, bool log);
 
 	void calculateTSP_subset(Sensor *uavDummySensor, std::list<Sensor *> &sList, std::list<TSP2OptEnergyEdge *> &fCircuit);
 

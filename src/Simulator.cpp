@@ -103,12 +103,21 @@ void Simulator::finish() {
 
 void Simulator::run(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &sensList) {
 	int timeSlot = Generic::getInstance().timeSlot;
-	while ((end_time < 0) || (simulation_time < end_time)) {
+	bool endSimulation = false;
+	bool makeLog = false;
 
-		cout << "Simulation time: " << simulation_time << endl;
+	while (((end_time < 0) || (simulation_time < end_time)) && (!endSimulation)) {
+
+		if ((simulation_time % 10000000) == 0) makeLog = true;
+		else makeLog = false;
+
+		if (makeLog) cout << "Simulation time: " << simulation_time << " - ";
 
 		// move and update the UAVs
 		for (auto& c : clustVec) {
+			if (makeLog) cout << "[UAV" << c->clusterUAV->id << " S" << c->clusterUAV->state << " E" << c->clusterUAV->residual_energy
+					<< " P" <<c->clusterUAV->actual_coord << " ";
+
 			switch (c->clusterUAV->state) {
 			case UAV::IDLE:
 				cluster_and_tour(clustVec, sensList, c);
@@ -178,6 +187,7 @@ void Simulator::run(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &
 				break;
 
 			case UAV::WAKINGUP_READING:
+				if (makeLog) cout << " R" << c->nextSensor->id;
 				c->clusterUAV->residual_energy -= Generic::getInstance().singleMotorPowerUAV * 4.0 * Generic::getInstance().timeSlot;
 				if (c->timeSpentInWakeRead >= Generic::getInstance().getTime2WakeRead(c->clusterUAV->actual_coord, c->nextSensor->coord)) {
 					// ok, finished
@@ -185,6 +195,11 @@ void Simulator::run(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &
 
 					//remove at the end the wakeup+reading energy
 					c->clusterUAV->residual_energy -= Generic::getInstance().getEnergy2WakeRead(c->clusterUAV->actual_coord, c->nextSensor->coord);
+					c->nextSensor->residual_energy -= Generic::getInstance().energyBOOT + Generic::getInstance().energyON;
+
+					if (c->nextSensor->residual_energy <= 0) {
+						endSimulation = true;
+					}
 
 					c->timeSpentInWakeRead = 0;
 
@@ -207,13 +222,19 @@ void Simulator::run(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &
 				}
 				break;
 			}
+
+			if (makeLog) cout << "] ";
 		}
 
-		for (auto& s: sensList) {
-			s->update_energy();
+		if (makeLog) {
+			for (auto& ss : sensList) {
+				cout << "[S" << ss->id << " E" << ss->residual_energy << "]";
+			}
 		}
 
-		if (simulation_time > 100) break;  //TODO remove
+		if (makeLog) cout << endl;
+
+		//if (simulation_time > 100) break;  //TODO remove
 
 		simulation_time += timeSlot;
 	}

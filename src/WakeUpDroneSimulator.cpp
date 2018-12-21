@@ -118,7 +118,7 @@ void generateDOTfile(std::string outFileName, std::vector<CoordCluster *> &clust
 				//		<< " has loss correlation: " << sLossCorr
 				//		<< endl;
 
-				double actSize = pSize * (2 - sLossFull);
+				double actSize = pSize * (1.0 + (2.0 * (1.0 - sLossFull)));//;(2 - sLossFull);
 				fout << "S" << p->id << " [shape=\"point\" color=\"" << color
 						<< "\" pos=\"" << p->coord.x << "," << p->coord.y << "!\" width="
 						<< actSize << ", height=" << actSize << "]" << endl;

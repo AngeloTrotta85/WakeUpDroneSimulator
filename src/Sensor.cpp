@@ -102,7 +102,3 @@ bool Sensor::isBooked(void) {
 	}
 	return ris;
 }
-
-void Sensor::update_energy(void) {
-
-}

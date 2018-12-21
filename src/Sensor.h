@@ -18,8 +18,6 @@ public:
 	Sensor(MyCoord sensCoord, double re);
 	Sensor(MyCoord sensCoord, double re, int id_new);
 
-	void update_energy(void);
-
 	bool isBooked(void);
 
 public:

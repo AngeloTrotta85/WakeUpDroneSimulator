@@ -16,27 +16,42 @@ TSP2OptEnergy::TSP2OptEnergy() {
 
 }
 
-void TSP2OptEnergy::calculateCosts1Edge(TSP2OptEnergyEdge *e, bool forceWakeUp, double &time, double &energy) {
-	time = 0;
-	energy = 0;
+void TSP2OptEnergy::calculateCosts1Edge(TSP2OptEnergyEdge *e, bool forceWakeUp, double &time, double &energy, bool log) {
+	//time = 0;
+	//energy = 0;
+	double moveTime, moveEnergy, wakeTime, wakeEnergy;
 
-	time += Generic::getInstance().getTime2Travel(e->first->coord, e->second->coord);
-	energy += Generic::getInstance().getEnergy2Travel(e->first->coord, e->second->coord);
+	moveTime = moveEnergy = wakeTime = wakeEnergy = 0;
+
+	moveTime = ceil(Generic::getInstance().getTime2Travel(e->first->coord, e->second->coord) / Generic::getInstance().timeSlot) + 1;
+	moveEnergy = moveTime * Generic::getInstance().timeSlot * Generic::getInstance().singleMotorPowerUAV * 4.0;
+
+	if (log) {
+		cout << "edge S" << e->first->id << "-S" << e->second->id << " TT:" << moveTime << " TE:" << moveEnergy;
+	}
 
 	if ((e->second->id != TSP_UAV_CODE) || forceWakeUp) {	// Intermediate arc
-		time += Generic::getInstance().getTime2WakeRead(e->second->coord, e->second->coord);
-		energy += Generic::getInstance().getEnergy2WakeRead(e->second->coord, e->second->coord);
+		wakeTime = ceil(Generic::getInstance().getTime2WakeRead(e->first->coord, e->second->coord) / Generic::getInstance().timeSlot) + 1;
+		wakeEnergy = wakeTime * Generic::getInstance().timeSlot * Generic::getInstance().singleMotorPowerUAV * 4.0;
+		wakeEnergy += Generic::getInstance().getEnergy2WakeRead(e->first->coord, e->second->coord);
+
+		if (log) {
+			cout << " WT:" << wakeTime << " WE:" << wakeEnergy << endl;
+		}
 	}
+
+	time = moveTime + wakeTime;
+	energy = moveEnergy + wakeEnergy;
 }
 
-void TSP2OptEnergy::calculateCosts(list<TSP2OptEnergyEdge *> edgesTSP, double &time, double &energy) {
+void TSP2OptEnergy::calculateCosts(list<TSP2OptEnergyEdge *> edgesTSP, double &time, double &energy, bool log) {
 	time = 0;
 	energy = 0;
 
 	for (auto& e : edgesTSP) {
 		double actTime, actEnergy;
 
-		calculateCosts1Edge(e, false, actTime, actEnergy);
+		calculateCosts1Edge(e, false, actTime, actEnergy, log);
 
 		time += actTime;
 		energy += actEnergy;
@@ -86,11 +101,12 @@ void TSP2OptEnergy::calculateTSP(CoordCluster *cc, std::list<Sensor *> &sl, int 
 
 		list<TSP2OptEnergyEdge *> tmpcircuit;
 		calculateTSP_subset(uavDummySensor, tmpSensors, tmpcircuit);
-		calculateCosts(tmpcircuit, t, e);
+		calculateCosts(tmpcircuit, t, e, false);
 		if (e < cc->clusterUAV->residual_energy) {
 			as.first->uavBookedReading[cc->clusterUAV->id] = true;
 
 			chosenSensors.push_back(as.first);
+			for (auto& ccf : chosenCircuit) free(ccf);
 			chosenCircuit.clear();
 			for (auto& tmpC : tmpcircuit) {
 				chosenCircuit.push_back(tmpC);
@@ -101,13 +117,15 @@ void TSP2OptEnergy::calculateTSP(CoordCluster *cc, std::list<Sensor *> &sl, int 
 			it_as = allSensors.begin();
 		}
 		else {
+			for (auto& tc : tmpcircuit) free(tc);
+			tmpcircuit.clear();
 			it_as++;
 		}
 	}
 
-	calculateCosts(chosenCircuit, t, e);
-	cout << "Calculated TSP for UAV" << cc->clusterUAV->id << " having residual energy " << cc->clusterUAV->residual_energy
-			<< "J. Cost: time=" << t<< "sec. Cost: energy=" << e << "J" << std::endl;
+	//calculateCosts(chosenCircuit, t, e, true);
+	//cout << "Calculated TSP for UAV" << cc->clusterUAV->id << " having residual energy " << cc->clusterUAV->residual_energy
+	//		<< "J. Cost: time=" << t<< "sec. Cost: energy=" << e << "J" << std::endl;
 
 	cc->pointsTSP_listFinal.clear();
 	for (auto& fe : chosenCircuit) {
@@ -115,6 +133,11 @@ void TSP2OptEnergy::calculateTSP(CoordCluster *cc, std::list<Sensor *> &sl, int 
 			cc->pointsTSP_listFinal.push_back(fe->second);
 		}
 	}
+
+	for (auto& ccf : chosenCircuit) free(ccf);
+	chosenCircuit.clear();
+	allSensors.clear();
+	chosenSensors.clear();
 }
 
 void TSP2OptEnergy::calculateTSP_subset(Sensor *uavDummySensor , list<Sensor *> &sList, list<TSP2OptEnergyEdge *> &fCircuit) {
@@ -135,7 +158,7 @@ void TSP2OptEnergy::calculateTSP_subset(Sensor *uavDummySensor , list<Sensor *> 
 			double t;
 			TSP2OptEnergyEdge *ne = new TSP2OptEnergyEdge(*it1, *it2, 0);
 
-			calculateCosts1Edge(ne, true, t, ne->weight);
+			calculateCosts1Edge(ne, true, t, ne->weight, false);
 			edges.push_back(ne);
 
 			it2++;
@@ -321,4 +344,10 @@ void TSP2OptEnergy::calculateTSP_subset(Sensor *uavDummySensor , list<Sensor *> 
 		//cout << " S" << fe->first->id << "-S" << fe->second->id;
 	}
 	//cout << endl;
+
+	for (auto& ef : edges) free(ef);
+	edges.clear();
+
+	for (auto& ff : finaledges) free(ff);
+	finaledges.clear();
 }

@@ -177,7 +177,7 @@ int main(int argc, char **argv) {
 	double motorPower = 21.7;  			// Watt -> calcolato esempio da "https://www.ecalc.ch/xcoptercalc.php"
 	double rechargePower = 25; 			// Watt
 	double flightAltitude = 5;			// Meters
-	double maxVelocity = 15;			// m/s
+	double maxVelocity = 12;			// m/s
 	double time2read = 1;				// seconds
 	double energy2read = 0.0005;		// Joule
 

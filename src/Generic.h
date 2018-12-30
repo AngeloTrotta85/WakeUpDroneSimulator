@@ -42,9 +42,20 @@ public:
 	}
 	void setSensorParam(double initEnergySensor, double sensorSelfDischarge, double eON, double eBOOT) {
 		initSensorEnergy = initEnergySensor;
-		sensorBatterySelfDischarge = sensorSelfDischarge;
 		energyON = eON;
 		energyBOOT = eBOOT;
+
+		sensorBatterySelfDischarge = sensorSelfDischarge;
+		if (sensorBatterySelfDischarge > 0) {
+			// sensorBatterySelfDischarge is per months
+			long double selfDischargeRatio = (100.0 - sensorBatterySelfDischarge) / 100.0;
+			long double slotsPerMonth = (30.0 * 24.0 * 60.0 * 60.0) / timeSlot;
+
+			sensorSelfDischargePerSlot = powl(selfDischargeRatio, 1.0 / slotsPerMonth);
+		}
+		else {
+			sensorSelfDischargePerSlot = 0;
+		}
 	}
 	void setUAVParam(double initEnergyUAV, double flightAltitude, double maxVel, double motorPower, double rechargePower, double time2read, double energy2read) {
 		initUAVEnergy = initEnergyUAV;
@@ -82,6 +93,7 @@ public:
 	double singleMotorPowerUAV;
 	double rechargeStation_power;
 	double sensorBatterySelfDischarge;
+	long double sensorSelfDischargePerSlot;
 	double energyON;
 	double energyBOOT;
 	double wakeupTxPower;

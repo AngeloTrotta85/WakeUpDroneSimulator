@@ -226,12 +226,12 @@ void Simulator::run(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &
 			if (makeLog) cout << "] ";
 		}
 
-		if (makeLog) {
-			for (auto& ss : sensList) {
-				cout << "[S" << ss->id << " E" << ss->residual_energy << "]";
-			}
-		}
+		for (auto& ss : sensList) {
+			if (makeLog) cout << "[S" << ss->id << " E" << ss->residual_energy << "]";
 
+			//selfdischarge
+			ss->residual_energy = ((long double) ss->residual_energy) * Generic::getInstance().sensorSelfDischargePerSlot;
+		}
 		if (makeLog) cout << endl;
 
 		//if (simulation_time > 100) break;  //TODO remove

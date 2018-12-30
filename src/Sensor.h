@@ -29,7 +29,7 @@ public:
 
 public:
 	MyCoord coord;
-	double residual_energy;
+	long double residual_energy;
 	std::list<Readings *> mySensorReadings;
 	std::map<int, bool> uavBookedReading;
 	int id;

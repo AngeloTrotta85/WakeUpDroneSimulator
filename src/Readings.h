@@ -23,8 +23,16 @@ public:
 public:
 	Sensor *sensor;
 	UAV *uav;
-	int  read_time;
+	int read_time;
 	double value;
+
+	int sequenceReading;
+	static int sequenceReadingCounter;
+
+	double gain;
+	double full_loss;
+	double energy_loss;
+	double correlation_loss;
 };
 
 #endif /* READINGS_H_ */

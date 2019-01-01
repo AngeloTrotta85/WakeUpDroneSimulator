@@ -38,7 +38,7 @@ void Sensor::generateRandomSensors(std::list<Sensor *> &pl, int ss, int ns) {
 				RandomGenerator::getInstance().getRealNormal(Generic::getInstance().initSensorEnergy, Generic::getInstance().initSensorEnergy / 50.0)
 		);
 		pl.push_back(newS);
-		std::cout << "Sensor: " << i << " --> " << newS->coord << " - Energy: " << newS->residual_energy << std::endl;
+		//std::cout << "Sensor: " << i << " --> " << newS->coord << " - Energy: " << newS->residual_energy << std::endl;
 	}
 }
 

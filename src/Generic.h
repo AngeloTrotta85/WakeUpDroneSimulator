@@ -74,6 +74,12 @@ public:
 		antennaGainRx = gRx;
 	}
 
+	void setStatParam(bool makeOnrunStat, const std::string statFile, const std::string hitmapFile) {
+		makeRunSimStat = makeOnrunStat;
+		statFilename = std::string(statFile);
+		hitmapFilename = std::string(hitmapFile);
+	}
+
 	double getTime2Travel(MyCoord start, MyCoord end);
 	double getEnergy2Travel(MyCoord start, MyCoord end);
 
@@ -101,6 +107,9 @@ public:
 	double energyToWakeUp;
 	double antennaGainTx;
 	double antennaGainRx;
+	bool makeRunSimStat;
+	std::string statFilename;
+	std::string hitmapFilename;
 };
 
 #endif /* GENERIC_H_ */

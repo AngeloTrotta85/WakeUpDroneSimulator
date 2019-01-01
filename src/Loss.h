@@ -11,6 +11,7 @@
 #include <list>
 
 class Sensor;
+class Readings;
 
 class Loss {
 public:
@@ -54,6 +55,15 @@ public:
 	double calculate_loss_time(int t1, int t2);
 	double calculate_loss_correlation(Sensor *se, int tk, std::list<Sensor *> &sl);
 	double calculate_loss_full(Sensor *se, int tk, std::list<Sensor *> &sl);
+
+	double calculate_loss_energy_reading(Readings *re, int tk, std::list<Sensor *> &sl);
+	double calculate_loss_distance_reading(Readings *r1, Readings *r2);
+	double calculate_loss_time_reading(int t1, int t2);
+	double calculate_loss_correlation_reading(Readings *re, int tk, std::list<Sensor *> &sl);
+	double calculate_loss_full_reading(Readings *re, int tk, std::list<Sensor *> &sl);
+	double calculate_index_full_reading(int tk, std::list<Sensor *> &sl);
+
+	void calculate_reading_par(int tk, Readings *r, std::list<Sensor *> &sl);
 
 private:
 	double k_d;

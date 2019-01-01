@@ -38,7 +38,7 @@ void UAV::generateRandomUAVs(std::list<UAV *> &pl, int ss, int nu) {
 					RandomGenerator::getInstance().getRealNormal(Generic::getInstance().initUAVEnergy, Generic::getInstance().initUAVEnergy/100.0)
 				);
 		pl.push_back(newU);
-		std::cout << "UAV: " << i << " --> " << newU->recharge_coord << " - Energy:" << newU->max_energy << std::endl;
+		//std::cout << "UAV: " << i << " --> " << newU->recharge_coord << " - Energy:" << newU->max_energy << std::endl;
 	}
 }
 

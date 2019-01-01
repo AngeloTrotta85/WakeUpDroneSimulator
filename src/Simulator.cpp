@@ -5,8 +5,14 @@
  *      Author: angelo
  */
 
+#include <iostream>
+#include <fstream>
+
 #include "Simulator.h"
 #include "Generic.h"
+#include "Statistics.h"
+#include "RandomGenerator.h"
+#include "Loss.h"
 
 #include "clustering/ClusteringEqRandomLoss.h"
 #include "clustering/ClusteringKMeans.h"
@@ -97,21 +103,71 @@ void Simulator::setTSPAlgo(std::string algotype_tsp) {
 	}
 }
 
-void Simulator::finish() {
+void Simulator::finish(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &sensList, std::list<Readings *> &allReadings) {
 
+	if (!Generic::getInstance().statFilename.empty()) {
+		double avg, min, max, var;
+
+		std::ofstream ofs (Generic::getInstance().statFilename, std::ofstream::out | std::ofstream::app);
+		if (ofs.is_open()) {
+			ofs << "FINISH LifetimeSecs " << simulation_time << endl;
+			ofs << "FINISH LifetimeDays " << ((double) simulation_time) / 86400.0 << endl;
+
+			ofs << "FINISH Index " << Statistics::getInstance().calculate_andSave_index(simulation_time, clustVec, sensList, false) << endl;
+
+			Statistics::getInstance().calculate_minmax_sensor_energy(sensList, avg, min, max, var);
+			ofs << "FINISH EnergySensorsAvg " << avg << endl;
+			ofs << "FINISH EnergySensorsMin " << min << endl;
+			ofs << "FINISH EnergySensorsMax " << max << endl;
+			ofs << "FINISH EnergySensorsDiff " << (max - min) << endl;
+			ofs << "FINISH EnergySensorsVar " << var << endl;
+			ofs << "FINISH EnergySensorsStddev " << sqrt(var) << endl;
+
+			ofs << "FINISH AvgIndexDerivative " << Statistics::getInstance().calculateAvgIndexDerivative() << endl;
+			ofs << "FINISH NumberReadings " << allReadings.size() << endl;
+
+			Statistics::getInstance().calculate_minmax_sensor_visiting(simulation_time, clustVec, sensList, avg, min, max, var);
+			ofs << "FINISH VisitingSensorsAvg " << avg << endl;
+			ofs << "FINISH VisitingSensorsMin " << min << endl;
+			ofs << "FINISH VisitingSensorsMax " << max << endl;
+			ofs << "FINISH VisitingSensorsDiff " << (max - min) << endl;
+			ofs << "FINISH VisitingSensorsVar " << var << endl;
+			ofs << "FINISH VisitingSensorsStddev " << sqrt(var) << endl;
+
+			ofs.close();
+		}
+	}
+
+	if (!Generic::getInstance().hitmapFilename.empty()) {
+		std::ofstream ofs (Generic::getInstance().hitmapFilename, std::ofstream::out);
+		if (ofs.is_open()) {
+			for (auto& s : sensList) {
+				ofs << s->id << " " << s->coord.x << " " << s->coord.y << " " << s->mySensorReadings.size() << endl;
+			}
+			ofs.close();
+		}
+	}
 }
 
-void Simulator::run(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &sensList) {
+void Simulator::run(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &sensList, std::list<Readings *> &allReadings) {
 	int timeSlot = Generic::getInstance().timeSlot;
 	bool endSimulation = false;
 	bool makeLog = false;
+
+	if (!Generic::getInstance().statFilename.empty()) {
+		std::ofstream ofs (Generic::getInstance().statFilename, std::ofstream::out);
+		if (ofs.is_open()) {
+			ofs << "";
+			ofs.close();
+		}
+	}
 
 	while (((end_time < 0) || (simulation_time < end_time)) && (!endSimulation)) {
 
 		if ((simulation_time % 10000000) == 0) makeLog = true;
 		else makeLog = false;
 
-		if (makeLog) cout << "Simulation time: " << simulation_time << " - ";
+		if (makeLog) cout << "Simulation time: " << ((double) simulation_time) / (3600 * 24) << " - ";
 
 		// move and update the UAVs
 		for (auto& c : clustVec) {
@@ -197,6 +253,16 @@ void Simulator::run(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &
 					c->clusterUAV->residual_energy -= Generic::getInstance().getEnergy2WakeRead(c->clusterUAV->actual_coord, c->nextSensor->coord);
 					c->nextSensor->residual_energy -= Generic::getInstance().energyBOOT + Generic::getInstance().energyON;
 
+					//Add the new Reading
+					Readings *read_new = new Readings(c->nextSensor, c->clusterUAV, simulation_time, RandomGenerator::getInstance().getRealUniform(0.0, 1.0));
+					Loss::getInstance().calculate_reading_par(simulation_time, read_new, sensList);
+					c->nextSensor->mySensorReadings.push_front(read_new);
+					c->clusterUAV->mySensorReadings.push_front(read_new);
+					allReadings.push_front(read_new);
+					//c->nextSensor->mySensorReadings.push_back(read_new);
+					//c->clusterUAV->mySensorReadings.push_back(read_new);
+					//allReadings.push_back(read_new);
+
 					if (c->nextSensor->residual_energy <= 0) {
 						endSimulation = true;
 					}
@@ -232,9 +298,48 @@ void Simulator::run(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &
 			//selfdischarge
 			ss->residual_energy = ((long double) ss->residual_energy) * Generic::getInstance().sensorSelfDischargePerSlot;
 		}
-		if (makeLog) cout << endl;
+		if (makeLog) cout << endl << endl;
 
 		//if (simulation_time > 100) break;  //TODO remove
+
+		//STATISTICS
+		if ((Generic::getInstance().makeRunSimStat) && (!Generic::getInstance().statFilename.empty())) {
+			if (Statistics::getInstance().isTimeToLog(simulation_time)) {
+				double avg, min, max, var;
+
+				std::ofstream ofs (Generic::getInstance().statFilename, std::ofstream::out | std::ofstream::app);
+				if (ofs.is_open()) {
+					ofs << "SIMULATION Time " << simulation_time << endl;
+
+					ofs << "SIMULATION Index " << Statistics::getInstance().calculate_andSave_index(simulation_time, clustVec, sensList, true) << endl;
+
+					Statistics::getInstance().calculate_actual_minmax_sensor_energy(sensList, avg, min, max, var);
+					ofs << "SIMULATION EnergySensorsAvg " << avg << endl;
+					ofs << "SIMULATION EnergySensorsMin " << min << endl;
+					ofs << "SIMULATION EnergySensorsMax " << max << endl;
+					ofs << "SIMULATION EnergySensorsDiff " << (max - min) << endl;
+					ofs << "SIMULATION EnergySensorsVar " << var << endl;
+					ofs << "SIMULATION EnergySensorsStddev " << sqrt(var) << endl;
+
+					ofs << "SIMULATION AvgIndexDerivative " << Statistics::getInstance().calculateActualAvgIndexDerivative() << endl;
+					ofs << "SIMULATION NumberReadings " << allReadings.size() << endl;
+
+					Statistics::getInstance().calculate_actual_minmax_sensor_visiting(simulation_time, clustVec, sensList, avg, min, max, var);
+					ofs << "SIMULATION VisitingSensorsAvg " << avg << endl;
+					ofs << "SIMULATION VisitingSensorsMin " << min << endl;
+					ofs << "SIMULATION VisitingSensorsMax " << max << endl;
+					ofs << "SIMULATION VisitingSensorsDiff " << (max - min) << endl;
+					ofs << "SIMULATION VisitingSensorsVar " << var << endl;
+					ofs << "SIMULATION VisitingSensorsStddev " << sqrt(var) << endl;
+
+					ofs << endl;
+
+					ofs.close();
+				}
+
+				Statistics::getInstance().logging(simulation_time);
+			}
+		}
 
 		simulation_time += timeSlot;
 	}

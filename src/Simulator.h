@@ -49,8 +49,8 @@ public:
 public:
 
 	void init(int stime, int etime);
-	void run(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &sensList);
-	void finish();
+	void run(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &sensList, std::list<Readings *> &allReadings);
+	void finish(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &sensList, std::list<Readings *> &allReadings);
 
 	void setClusteringAlgo(std::string algotype_clustering);
 	void setTSPAlgo(std::string algotype_tsp);

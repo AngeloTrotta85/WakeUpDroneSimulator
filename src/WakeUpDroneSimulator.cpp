@@ -33,6 +33,7 @@
 #include "Loss.h"
 #include "Generic.h"
 #include "Simulator.h"
+#include "Statistics.h"
 
 using namespace std;
 using namespace boost;
@@ -159,6 +160,7 @@ int main(int argc, char **argv) {
 	std::list<Sensor *> sensorsList;
 	std::list<UAV *> uavsList;
 	std::vector<CoordCluster *> clustersVec;
+	std::list<Readings *> allReadings;
 
 	// default values
 	int scenarioSize = 10000;
@@ -167,9 +169,9 @@ int main(int argc, char **argv) {
 	int time_N = 3600;
 	int timeSlot = 1;
 
-	double kd = 0.08;
-	double kt = 0.02;
-	double ke = 0.0005;
+	double kd = 0.02;		//when 0.1? [0.1 at 26m][0.05 at 45m][0.02 at 115m][0.01 at 230m][0.005 at 460m]
+	double kt = 0.000105;	//when 0.1? [0.1 at 26s][0.05 at 45s][0.02 at 115s][0.01 at 230s][0.005 at 460s][0.002 at 1150s][0.001 at 2300s][0.00065 at 3600s][0.0005 at 4600s][0.000105 at 6h]
+	double ke = 0.001;		//when 0.9? [0.1 at 26J][0.05 at 45J][0.02 at 115J][0.01 at 230J][0.005 at 460J][0.002 at 1150J][0.001 at 2300J][0.00065 at 3600s][0.0005 at 4600s][0.000105 at 21600J]
 	double a = 0.5;
 
 	// UAV parameters
@@ -194,7 +196,11 @@ int main(int argc, char **argv) {
 	double gainRx = 1;					// dBi
 	double energy2wakeup = 0.00001;		// Joule
 
-	cout << "Wake-up Drone BEGIN!!!" << endl;
+	//Statistict
+	int timeslots2log = 30;
+	bool makeStateDuringSim = false;
+
+	//cout << "Wake-up Drone BEGIN!!!" << endl;
 
 	InputParser input(argc, argv);
 
@@ -210,6 +216,11 @@ int main(int argc, char **argv) {
 	const std::string &dotFileOutput = input.getCmdOption("-dot");
 	const std::string &inputTimeSim = input.getCmdOption("-time");
 	const std::string &timeSlot_string = input.getCmdOption("-tSlot");
+
+	const std::string &stat2log_string = input.getCmdOption("-stat2l");
+	const std::string &statOnrun_string = input.getCmdOption("-statOnrun");
+	const std::string &statFile = input.getCmdOption("-statFile");
+	const std::string &hitmapFile = input.getCmdOption("-hmFile");
 
 	const std::string &algotype_clustering = input.getCmdOption("-algoClust");
 	const std::string &algotype_tsp = input.getCmdOption("-algoTSP");
@@ -261,6 +272,12 @@ int main(int argc, char **argv) {
 	}
 	if (!timeSlot_string.empty()) {
 		timeSlot = atoi(timeSlot_string.c_str());
+	}
+	if (!stat2log_string.empty()) {
+		timeslots2log = atoi(stat2log_string.c_str());
+	}
+	if (!statOnrun_string.empty()) {
+		makeStateDuringSim = atoi(statOnrun_string.c_str());
 	}
 	if (!energy_UAV.empty()) {
 		initEnergyUAV = atof(energy_UAV.c_str());
@@ -327,7 +344,9 @@ int main(int argc, char **argv) {
 	Generic::getInstance().setSensorParam(initEnergySensor, sensorSelfDischarge, eON, eBOOT);
 	Generic::getInstance().setUAVParam(initEnergyUAV, flightAltitude, maxVelocity, motorPower, rechargePower, time2read, energy2read);
 	Generic::getInstance().setWakeUpParam(wakeupPower, wakeupFreq, energy2wakeup, gainTx, gainRx);
+	Generic::getInstance().setStatParam(makeStateDuringSim, statFile, hitmapFile);
 	Loss::getInstance().init(kd, kt, ke, a);
+	Statistics::getInstance().init(timeslots2log);
 
 	if (inputSensorsFileName.empty()) {
 		Sensor::generateRandomSensors(sensorsList, scenarioSize, nSensors);
@@ -361,13 +380,13 @@ int main(int argc, char **argv) {
 	Simulator::getInstance().init(0, time_N);
 	Simulator::getInstance().setClusteringAlgo(algotype_clustering);
 	Simulator::getInstance().setTSPAlgo(algotype_tsp);
-	Simulator::getInstance().run(clustersVec, sensorsList);
-	Simulator::getInstance().finish();
+	Simulator::getInstance().run(clustersVec, sensorsList, allReadings);
+	Simulator::getInstance().finish(clustersVec, sensorsList, allReadings);
 
 	if (!dotFileOutput.empty()) {
 		generateDOTfile(dotFileOutput, clustersVec, sensorsList, scenarioSize, ((double) scenarioSize)/50.0, Simulator::getInstance().getSimulationTime());
 	}
 
-	cout << "Wake-up Drone FINISH!!!" << endl;
+	//cout << "Wake-up Drone FINISH!!!" << endl;
 	return EXIT_SUCCESS;
 }

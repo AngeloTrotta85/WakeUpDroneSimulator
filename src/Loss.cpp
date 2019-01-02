@@ -10,6 +10,8 @@
 #include "Sensor.h"
 #include "Readings.h"
 
+#define MIN_TIME_LOSS 0.01
+
 Loss::Loss() {
 	k_d = 0.08;
 	k_t = 0.02;
@@ -58,7 +60,7 @@ double Loss::calculate_loss_correlation(Sensor *se, int tk, std::list<Sensor *> 
 					ris = actLoss;
 				}
 
-				if (loss_time < 0.0005) break;
+				if (loss_time < MIN_TIME_LOSS) break;
 			}
 			else if ((r->read_time == tk) && (r->sequenceReading < (*se->mySensorReadings.begin())->sequenceReadingCounter)) {
 				double loss_dist = calculate_loss_distance(se, ss);
@@ -68,7 +70,7 @@ double Loss::calculate_loss_correlation(Sensor *se, int tk, std::list<Sensor *> 
 					ris = actLoss;
 				}
 
-				if (loss_time < 0.0005) break;
+				if (loss_time < MIN_TIME_LOSS) break;
 			}
 		}
 		if (ss->isBooked()) {
@@ -79,7 +81,7 @@ double Loss::calculate_loss_correlation(Sensor *se, int tk, std::list<Sensor *> 
 				ris = actLoss;
 			}
 
-			if (loss_time < 0.0005) break;
+			if (loss_time < MIN_TIME_LOSS) break;
 		}
 	}
 	return ris;
@@ -126,7 +128,7 @@ double Loss::calculate_loss_correlation_reading(Readings *re, int tk, std::list<
 					ris = actLoss;
 				}
 
-				if (loss_time < 0.0005) break;
+				if (loss_time < MIN_TIME_LOSS) break;
 			}
 		}
 	}

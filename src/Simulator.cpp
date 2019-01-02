@@ -176,6 +176,7 @@ void Simulator::run(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &
 
 			switch (c->clusterUAV->state) {
 			case UAV::IDLE:
+				//cout << endl << "UAV" << c->clusterUAV->id << " is choosing its tour" << endl;
 				cluster_and_tour(clustVec, sensList, c);
 
 				//set the chosen sensors as booked
@@ -289,6 +290,11 @@ void Simulator::run(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &
 				break;
 			}
 
+			if (c->clusterUAV->residual_energy < 0) {
+				cerr << "UAV" << c->clusterUAV->id << " run out of energy" << endl;
+				exit(EXIT_FAILURE);
+			}
+
 			if (makeLog) cout << "] ";
 		}
 
@@ -309,7 +315,8 @@ void Simulator::run(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &
 
 				std::ofstream ofs (Generic::getInstance().statFilename, std::ofstream::out | std::ofstream::app);
 				if (ofs.is_open()) {
-					ofs << "SIMULATION Time " << simulation_time << endl;
+					ofs << "SIMULATION TimeSecs " << simulation_time << endl;
+					ofs << "SIMULATION TimeDays " << ((double) simulation_time) / 86400.0 << endl;
 
 					ofs << "SIMULATION Index " << Statistics::getInstance().calculate_andSave_index(simulation_time, clustVec, sensList, true) << endl;
 

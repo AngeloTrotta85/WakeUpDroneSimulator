@@ -278,7 +278,8 @@ int main(int argc, char **argv) {
 		timeslots2log = atoi(stat2log_string.c_str());
 	}
 	if (!statOnrun_string.empty()) {
-		makeStateDuringSim = atoi(statOnrun_string.c_str());
+		int tmp = atoi(statOnrun_string.c_str());
+		makeStateDuringSim = (tmp != 0);
 	}
 	if (!energy_UAV.empty()) {
 		initEnergyUAV = atof(energy_UAV.c_str());

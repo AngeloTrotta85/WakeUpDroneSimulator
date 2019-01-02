@@ -169,30 +169,31 @@ int main(int argc, char **argv) {
 	int time_N = 3600;
 	int timeSlot = 1;
 
-	double kd = 0.02;		//when 0.1? [0.1 at 26m][0.05 at 45m][0.02 at 115m][0.01 at 230m][0.005 at 460m]
-	double kt = 0.000105;	//when 0.1? [0.1 at 26s][0.05 at 45s][0.02 at 115s][0.01 at 230s][0.005 at 460s][0.002 at 1150s][0.001 at 2300s][0.00065 at 3600s][0.0005 at 4600s][0.000105 at 6h]
-	double ke = 0.001;		//when 0.9? [0.1 at 26J][0.05 at 45J][0.02 at 115J][0.01 at 230J][0.005 at 460J][0.002 at 1150J][0.001 at 2300J][0.00065 at 3600s][0.0005 at 4600s][0.000105 at 21600J]
+	// (constant k at predefined %) k = (ln(1/%))/x       (used 0.1%)
+	double kd = 0.00460517;		//when 0.1? [0.00460517 at 500m] [0.1 at 26m][0.05 at 45m][0.02 at 115m][0.01 at 230m][0.005 at 460m]
+	double kt = 0.000106601;	//when 0.1? [0.000106601 at 6h][0.1 at 26s][0.05 at 45s][0.02 at 115s][0.01 at 230s][0.005 at 460s][0.002 at 1150s][0.001 at 2300s][0.00065 at 3600s][0.0005 at 4600s]
+	double ke = 0.001151293;	//when 0.9? [0.001151293 at 2000J][0.1 at 26J][0.05 at 45J][0.02 at 115J][0.01 at 230J][0.005 at 460J][0.002 at 1150J][0.001 at 2300J][0.00065 at 3600s][0.0005 at 4600s][0.000105 at 21600J]
 	double a = 0.5;
 
 	// UAV parameters
 	double initEnergyUAV = 119880;  	// Joule -> 3000mAh * 11.1Volt * 3.6
 	double motorPower = 21.7;  			// Watt -> calcolato esempio da "https://www.ecalc.ch/xcoptercalc.php"
-	double rechargePower = 25; 			// Watt
-	double flightAltitude = 5;			// Meters
+	double rechargePower = 15; 			// Watt	-> charging at 1C (it should recharges in 1h, but actually it needs 2.5h to finish the charge)
+	double flightAltitude = 5;			// Meters (having Ptx=0.5 and Gtx=8.6 and Grx=1, at 25m it needs ~2sec to wakeup)
 	double maxVelocity = 12;			// m/s
 	double time2read = 1;				// seconds
 	double energy2read = 0.0005;		// Joule
 
 	//Sensor parameters
 	double initEnergySensor = 7992;		// Joule -> 600mAh * 3.7Volt * 3.6
-	double sensorSelfDischarge = 3;		// Percentage per month
+	double sensorSelfDischarge = 3;		// Percentage per month (https://batteryuniversity.com/learn/article/elevating_self_discharge)
 	double eON = 0.000494;				// Joule -> from ICC
 	double eBOOT = 0.0075;				// Joule -> from ICC
 
 	//WakeUp
 	double wakeupPower = 0.5;			// Watt -> trasmissione dell'illuminatore	//27dBm
 	double wakeupFreq = 868;			// MHz
-	double gainTx = 6;					// dBi
+	double gainTx = 8.6;				// dBi (ex Yagi https://www.team-blacksheep.com/products/prod:868_yagi)
 	double gainRx = 1;					// dBi
 	double energy2wakeup = 0.00001;		// Joule
 

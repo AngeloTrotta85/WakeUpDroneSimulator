@@ -190,7 +190,6 @@ void Simulator::run(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &
 					c->startingSensor = nullptr;
 					c->nextSensor = *c->pointsTSP_listFinal.begin();
 				}
-
 				break;
 
 			case UAV::MOVING:

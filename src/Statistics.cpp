@@ -119,3 +119,30 @@ void Statistics::calculate_actual_minmax_sensor_visiting(int sim_time, std::vect
 	return calculate_minmax_sensor_visiting(sim_time, clustVec, sensList, avg, min, max, var);
 }
 
+void Statistics::calculate_minmax_uav_charge_time(std::vector<CoordCluster *> &clustVec, double &avg, double &min, double &max, double &var) {
+	double sum = 0;
+
+	avg = var = 0;
+	min = std::numeric_limits<double>::max();
+	max = -1;
+
+	for (auto& c: clustVec) {
+		double actVal = c->clusterUAV->chargeCount;
+		sum += actVal;
+		if (actVal > max) max = actVal;
+		if (actVal < min) min = actVal;
+	}
+	avg = sum / ((double) clustVec.size());
+
+	sum = 0;
+	for (auto& c: clustVec) {
+		double actVal = c->clusterUAV->chargeCount;
+		sum += pow(actVal - avg, 2.0);
+	}
+	var = sum / ((double) (clustVec.size() - 1));
+}
+
+void Statistics::calculate_actual_minmax_uav_charge_time(std::vector<CoordCluster *> &clustVec, double &avg, double &min, double &max, double &var) {
+	return calculate_minmax_uav_charge_time(clustVec, avg, min, max, var);
+}
+

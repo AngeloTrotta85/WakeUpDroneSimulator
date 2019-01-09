@@ -65,6 +65,9 @@ public:
 	void calculate_minmax_sensor_visiting(int sim_time, std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &sensList, double &avg, double &min, double &max, double &var);
 	void calculate_actual_minmax_sensor_visiting(int sim_time, std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &sensList, double &avg, double &min, double &max, double &var);
 
+	void calculate_minmax_uav_charge_time(std::vector<CoordCluster *> &clustVec, double &avg, double &min, double &max, double &var);
+	void calculate_actual_minmax_uav_charge_time(std::vector<CoordCluster *> &clustVec, double &avg, double &min, double &max, double &var);
+
 public:
 	int step_simulation_log;
 	int next_step_simulation_log;

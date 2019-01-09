@@ -20,6 +20,7 @@ int UAV::idUAVGen = 0;
 UAV::UAV(MyCoord recCoord, double re) {
 	actual_coord = recharge_coord = recCoord;
 	max_energy = residual_energy = re;
+	chargeCount = 0;
 	state = IDLE;
 	id = idUAVGen++;
 }
@@ -27,6 +28,7 @@ UAV::UAV(MyCoord recCoord, double re) {
 UAV::UAV(MyCoord recCoord, double re, int id_new) {
 	actual_coord = recharge_coord = recCoord;
 	max_energy = residual_energy = re;
+	chargeCount = 0;
 	state = IDLE;
 	id = id_new;
 }

@@ -126,6 +126,14 @@ void Simulator::finish(std::vector<CoordCluster *> &clustVec, std::list<Sensor *
 			ofs << "FINISH AvgIndexDerivative " << Statistics::getInstance().calculateAvgIndexDerivative() << endl;
 			ofs << "FINISH NumberReadings " << allReadings.size() << endl;
 
+			Statistics::getInstance().calculate_minmax_uav_charge_time(clustVec, avg, min, max, var);
+			ofs << "FINISH UavChargeTimesAvg " << avg << endl;
+			ofs << "FINISH UavChargeTimesMin " << min << endl;
+			ofs << "FINISH UavChargeTimesMax " << max << endl;
+			ofs << "FINISH UavChargeTimesDiff " << (max - min) << endl;
+			ofs << "FINISH UavChargeTimesVar " << var << endl;
+			ofs << "FINISH UavChargeTimesStddev " << sqrt(var) << endl;
+
 			Statistics::getInstance().calculate_minmax_sensor_visiting(simulation_time, clustVec, sensList, avg, min, max, var);
 			ofs << "FINISH VisitingSensorsAvg " << avg << endl;
 			ofs << "FINISH VisitingSensorsMin " << min << endl;
@@ -239,6 +247,7 @@ void Simulator::run(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &
 				if (c->clusterUAV->residual_energy >= c->clusterUAV->max_energy) {
 					c->clusterUAV->residual_energy = c->clusterUAV->max_energy;
 					c->clusterUAV->state = UAV::IDLE;
+					c->clusterUAV->chargeCount++;
 				}
 				break;
 
@@ -329,6 +338,14 @@ void Simulator::run(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &
 
 					ofs << "SIMULATION AvgIndexDerivative " << Statistics::getInstance().calculateActualAvgIndexDerivative() << endl;
 					ofs << "SIMULATION NumberReadings " << allReadings.size() << endl;
+
+					Statistics::getInstance().calculate_actual_minmax_uav_charge_time(clustVec, avg, min, max, var);
+					ofs << "SIMULATION UavChargeTimesAvg " << avg << endl;
+					ofs << "SIMULATION UavChargeTimesMin " << min << endl;
+					ofs << "SIMULATION UavChargeTimesMax " << max << endl;
+					ofs << "SIMULATION UavChargeTimesDiff " << (max - min) << endl;
+					ofs << "SIMULATION UavChargeTimesVar " << var << endl;
+					ofs << "SIMULATION UavChargeTimesStddev " << sqrt(var) << endl;
 
 					Statistics::getInstance().calculate_actual_minmax_sensor_visiting(simulation_time, clustVec, sensList, avg, min, max, var);
 					ofs << "SIMULATION VisitingSensorsAvg " << avg << endl;

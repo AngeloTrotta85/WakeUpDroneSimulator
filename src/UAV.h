@@ -38,6 +38,7 @@ public:
 	double max_energy;
 	std::list<Readings *> mySensorReadings;
 	uav_state state;
+	int chargeCount;
 
 	int id;
 	static int idUAVGen;

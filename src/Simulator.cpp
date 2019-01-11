@@ -114,6 +114,10 @@ void Simulator::finish(std::vector<CoordCluster *> &clustVec, std::list<Sensor *
 			ofs << "FINISH LifetimeDays " << ((double) simulation_time) / 86400.0 << endl;
 
 			ofs << "FINISH Index " << Statistics::getInstance().calculate_andSave_index(simulation_time, clustVec, sensList, false) << endl;
+			ofs << "FINISH CorrelationGain " << Loss::getInstance().calculate_correlationGain_full_reading(simulation_time, sensList) << endl;
+			ofs << "FINISH CorrelationLoss " << Loss::getInstance().calculate_correlationLoss_full_reading(simulation_time, sensList) << endl;
+			ofs << "FINISH EnergyGain " << Loss::getInstance().calculate_energyGain_full_reading(simulation_time, sensList) << endl;
+			ofs << "FINISH EnergyLoss " << Loss::getInstance().calculate_energyLoss_full_reading(simulation_time, sensList) << endl;
 
 			Statistics::getInstance().calculate_minmax_sensor_energy(sensList, avg, min, max, var);
 			ofs << "FINISH EnergySensorsAvg " << avg << endl;
@@ -327,6 +331,10 @@ void Simulator::run(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &
 					ofs << "SIMULATION TimeDays " << ((double) simulation_time) / 86400.0 << endl;
 
 					ofs << "SIMULATION Index " << Statistics::getInstance().calculate_andSave_index(simulation_time, clustVec, sensList, true) << endl;
+					ofs << "SIMULATION CorrelationGain " << Loss::getInstance().calculate_correlationGain_full_reading(simulation_time, sensList) << endl;
+					ofs << "SIMULATION CorrelationLoss " << Loss::getInstance().calculate_correlationLoss_full_reading(simulation_time, sensList) << endl;
+					ofs << "SIMULATION EnergyGain " << Loss::getInstance().calculate_energyGain_full_reading(simulation_time, sensList) << endl;
+					ofs << "SIMULATION EnergyLoss " << Loss::getInstance().calculate_energyLoss_full_reading(simulation_time, sensList) << endl;
 
 					Statistics::getInstance().calculate_actual_minmax_sensor_energy(sensList, avg, min, max, var);
 					ofs << "SIMULATION EnergySensorsAvg " << avg << endl;

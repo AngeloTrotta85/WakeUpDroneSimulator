@@ -161,11 +161,63 @@ double Loss::calculate_index_full_reading(int tk, std::list<Sensor *> &sl) {
 	return ris;
 }
 
+double Loss::calculate_correlationGain_full_reading(int tk, std::list<Sensor *> &sl) {
+	double ris = 0;
+	for (auto& ss : sl) {
+		for (auto& r : ss->mySensorReadings) {
+			if (r->read_time <= tk) {
+				ris += r->correlation_gain;
+			}
+		}
+	}
+	return ris;
+}
+
+double Loss::calculate_correlationLoss_full_reading(int tk, std::list<Sensor *> &sl) {
+	double ris = 0;
+	for (auto& ss : sl) {
+		for (auto& r : ss->mySensorReadings) {
+			if (r->read_time <= tk) {
+				ris += r->correlation_loss;
+			}
+		}
+	}
+	return ris;
+}
+
+double Loss::calculate_energyGain_full_reading(int tk, std::list<Sensor *> &sl) {
+	double ris = 0;
+	for (auto& ss : sl) {
+		for (auto& r : ss->mySensorReadings) {
+			if (r->read_time <= tk) {
+				ris += r->correlation_gain;
+			}
+		}
+	}
+	return ris;
+}
+
+double Loss::calculate_energyLoss_full_reading(int tk, std::list<Sensor *> &sl) {
+	double ris = 0;
+	for (auto& ss : sl) {
+		for (auto& r : ss->mySensorReadings) {
+			if (r->read_time <= tk) {
+				ris += r->correlation_loss;
+			}
+		}
+	}
+	return ris;
+}
+
 void Loss::calculate_reading_par(int tk, Readings *r, std::list<Sensor *> &sl) {
 	r->full_loss = calculate_loss_full_reading(r, tk, sl);
 	r->gain = 1.0 - r->full_loss;
+
 	r->energy_loss = calculate_loss_energy_reading(r, tk, sl);
+	r->energy_gain = 1.0 - r->energy_loss;
+
 	r->correlation_loss = calculate_loss_correlation_reading(r, tk, sl);
+	r->correlation_gain = 1.0 - r->correlation_loss;
 }
 
 

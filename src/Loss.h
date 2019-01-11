@@ -62,6 +62,10 @@ public:
 	double calculate_loss_correlation_reading(Readings *re, int tk, std::list<Sensor *> &sl);
 	double calculate_loss_full_reading(Readings *re, int tk, std::list<Sensor *> &sl);
 	double calculate_index_full_reading(int tk, std::list<Sensor *> &sl);
+	double calculate_correlationGain_full_reading(int tk, std::list<Sensor *> &sl);
+	double calculate_correlationLoss_full_reading(int tk, std::list<Sensor *> &sl);
+	double calculate_energyGain_full_reading(int tk, std::list<Sensor *> &sl);
+	double calculate_energyLoss_full_reading(int tk, std::list<Sensor *> &sl);
 
 	void calculate_reading_par(int tk, Readings *r, std::list<Sensor *> &sl);
 

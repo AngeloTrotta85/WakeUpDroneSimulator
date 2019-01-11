@@ -32,7 +32,9 @@ public:
 	double gain;
 	double full_loss;
 	double energy_loss;
+	double energy_gain;
 	double correlation_loss;
+	double correlation_gain;
 };
 
 #endif /* READINGS_H_ */

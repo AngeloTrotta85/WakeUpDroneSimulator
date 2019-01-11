@@ -23,7 +23,7 @@ Readings::Readings(Sensor *s, UAV *u, int timestamp, double val) {
 	read_time = timestamp;
 	sequenceReading = ++sequenceReadingCounter;
 
-	gain = full_loss = energy_loss = correlation_loss = 0;
+	gain = full_loss = energy_loss = energy_gain = correlation_loss = correlation_gain = 0;
 }
 
 void Readings::generate_readings(std::list<Sensor *> &sl, std::list<UAV *> &ul, int maxTime) {

@@ -33,9 +33,16 @@ Sensor::Sensor(MyCoord sensCoord, double re, int id_new) {
 
 void Sensor::generateRandomSensors(std::list<Sensor *> &pl, int ss, int ns) {
 	for (int i : boost::irange(0, ns)) { // i goes from 0 to ns-1
+		double randomEnergy = 0;
+		if (Generic::getInstance().fullRandomInit) {
+			randomEnergy = RandomGenerator::getInstance().getRealUniform(0.0, Generic::getInstance().initSensorEnergy);
+		}
+		else {
+			randomEnergy = RandomGenerator::getInstance().getRealNormal(Generic::getInstance().initSensorEnergy, Generic::getInstance().initSensorEnergy / 50.0);
+		}
 		Sensor *newS = new Sensor(
 				MyCoord(RandomGenerator::getInstance().getRealUniform(0, ss), RandomGenerator::getInstance().getRealUniform(0, ss)),
-				RandomGenerator::getInstance().getRealNormal(Generic::getInstance().initSensorEnergy, Generic::getInstance().initSensorEnergy / 50.0)
+				randomEnergy
 		);
 		pl.push_back(newS);
 		//std::cout << "Sensor: " << i << " --> " << newS->coord << " - Energy: " << newS->residual_energy << std::endl;

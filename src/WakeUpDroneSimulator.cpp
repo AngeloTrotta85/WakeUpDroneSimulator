@@ -189,6 +189,7 @@ int main(int argc, char **argv) {
 	double sensorSelfDischarge = 3;		// Percentage per month (https://batteryuniversity.com/learn/article/elevating_self_discharge)
 	double eON = 0.000494;				// Joule -> from ICC
 	double eBOOT = 0.0075;				// Joule -> from ICC
+	bool fullRandomSensors = false;		// true to make random from 0 to MAX
 
 	//WakeUp
 	double wakeupPower = 0.5;			// Watt -> trasmissione dell'illuminatore	//27dBm
@@ -243,6 +244,7 @@ int main(int argc, char **argv) {
 	const std::string &energy_eon = input.getCmdOption("-eON");
 	const std::string &energy_eboot = input.getCmdOption("-eBOOT");
 	const std::string &sensor_self_discharge = input.getCmdOption("-ssd");
+	const std::string &sensor_full_random = input.getCmdOption("-sFR");
 
 	const std::string &wakeup_tx_power = input.getCmdOption("-wuPTx");
 	const std::string &wakeup_tx_freq = input.getCmdOption("-wuFreq");
@@ -305,6 +307,9 @@ int main(int argc, char **argv) {
 	if (!energy_sensor.empty()) {
 		initEnergySensor = atof(energy_sensor.c_str());
 	}
+	if (!sensor_full_random.empty()) {
+		fullRandomSensors = atoi(sensor_full_random.c_str()) != 0;
+	}
 	if (!energy_eon.empty()) {
 		eON = atof(energy_eon.c_str());
 	}
@@ -343,7 +348,7 @@ int main(int argc, char **argv) {
 	}
 
 	Generic::getInstance().init(timeSlot);
-	Generic::getInstance().setSensorParam(initEnergySensor, sensorSelfDischarge, eON, eBOOT);
+	Generic::getInstance().setSensorParam(initEnergySensor, sensorSelfDischarge, eON, eBOOT, fullRandomSensors);
 	Generic::getInstance().setUAVParam(initEnergyUAV, flightAltitude, maxVelocity, motorPower, rechargePower, time2read, energy2read);
 	Generic::getInstance().setWakeUpParam(wakeupPower, wakeupFreq, energy2wakeup, gainTx, gainRx);
 	Generic::getInstance().setStatParam(makeStateDuringSim, statFile, hitmapFile);

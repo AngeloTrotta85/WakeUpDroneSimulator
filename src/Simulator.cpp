@@ -246,7 +246,6 @@ void Simulator::run(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &
 				break;
 
 			case UAV::RECHARGING:
-
 				c->clusterUAV->residual_energy += Generic::getInstance().rechargeStation_power * ((double) Generic::getInstance().timeSlot);
 				if (c->clusterUAV->residual_energy >= c->clusterUAV->max_energy) {
 					c->clusterUAV->residual_energy = c->clusterUAV->max_energy;

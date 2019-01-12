@@ -73,7 +73,7 @@ public:
 
 	void calculate_reading_par(int tk, Readings *r, std::list<Sensor *> &sl);
 
-private:
+public:
 	double k_d;
 	double k_t;
 	double k_e;

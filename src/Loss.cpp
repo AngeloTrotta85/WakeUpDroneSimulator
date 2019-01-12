@@ -85,7 +85,7 @@ double Loss::calculate_loss_correlation(Sensor *se, int tk, std::list<Sensor *> 
 
 				if (loss_time < MIN_TIME_LOSS) break;
 			}
-			else if ((r->read_time == tk) && (r->sequenceReading < (*se->mySensorReadings.begin())->sequenceReadingCounter)) {
+			else if ((r->read_time == tk) && (r->sequenceReading < (*se->mySensorReadings.begin())->sequenceReading)) {
 				double loss_dist = calculate_loss_distance(se, ss);
 				double loss_time = calculate_loss_time(tk, r->read_time);
 				double actLoss = loss_dist * loss_time;

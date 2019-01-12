@@ -282,6 +282,8 @@ void Simulator::run(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &
 						endSimulation = true;
 					}
 
+					cout << "UAV" << c->clusterUAV->id << " visited S" << c->nextSensor->id << " at time " << simulation_time << endl;
+
 					c->timeSpentInWakeRead = 0;
 
 					c->startingSensor = c->nextSensor;
@@ -382,6 +384,7 @@ void Simulator::cluster_and_tour(std::vector<CoordCluster *> &clustVec, std::lis
 	actClust->pointsTSP_listFinal.clear();
 	clust->cluster(clustVec, sensList, simulation_time, actClust->clusterUAV->id);
 
+	cout << "Calculating TSP" << endl;
 	tsp->calculateTSP(actClust, sensList, simulation_time);
 }
 

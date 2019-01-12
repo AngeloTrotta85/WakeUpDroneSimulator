@@ -64,12 +64,23 @@ void TSP2OptEnergy::calculateTSP(CoordCluster *cc, std::list<Sensor *> &sl, int 
 
 	cc->pointsTSP_listFinal.clear();
 
+	cout << "Start calculating TSP at time: " << time_now << endl;
+
 	list< pair<Sensor *, double> > allSensors;
 	for (auto& s : cc->pointsList) {
 		double c = Loss::getInstance().calculate_loss_full(s, time_now, sl);
 		allSensors.push_back(make_pair(s, c));
 	}
 	allSensors.sort(sortCosts);
+
+	cout << "Ordered costs: ";
+	for (auto& st : allSensors) {
+		cout << "[S" << st.first->id << " " << st.first->coord << " "
+				<< st.second << "=(" << Loss::getInstance().alpha << "*" <<  Loss::getInstance().calculate_loss_correlation(st.first, time_now, sl) << ") + "
+				<< "((1-" << Loss::getInstance().alpha << ")*" <<  Loss::getInstance().calculate_loss_energy(st.first, time_now, sl) << ")"
+				<< "]" << endl;
+	}
+	cout << endl;
 
 	list<Sensor *> chosenSensors;
 	list<TSP2OptEnergyEdge *> chosenCircuit;
@@ -127,12 +138,15 @@ void TSP2OptEnergy::calculateTSP(CoordCluster *cc, std::list<Sensor *> &sl, int 
 	//cout << "Calculated TSP for UAV" << cc->clusterUAV->id << " having residual energy " << cc->clusterUAV->residual_energy
 	//		<< "J. Cost: time=" << t<< "sec. Cost: energy=" << e << "J" << std::endl;
 
+	cout << "Choosen circuit: ";
 	cc->pointsTSP_listFinal.clear();
 	for (auto& fe : chosenCircuit) {
 		if (fe->second->id != TSP_UAV_CODE) {
 			cc->pointsTSP_listFinal.push_back(fe->second);
+			cout << "[S" << fe->second->id << " " << fe->second->coord << "]";
 		}
 	}
+	cout << endl << endl;
 
 	for (auto& ccf : chosenCircuit) free(ccf);
 	chosenCircuit.clear();

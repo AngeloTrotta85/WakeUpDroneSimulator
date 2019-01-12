@@ -103,7 +103,7 @@ void TSP2OptEnergy::calculateTSP(CoordCluster *cc, std::list<Sensor *> &sl, int 
 		calculateTSP_subset(uavDummySensor, tmpSensors, tmpcircuit);
 		calculateCosts(tmpcircuit, t, e, false);
 		if (e < cc->clusterUAV->residual_energy) {
-			as.first->uavBookedReading[cc->clusterUAV->id] = true;
+			//as.first->uavBookedReading[cc->clusterUAV->id] = true;
 
 			chosenSensors.push_back(as.first);
 			for (auto& ccf : chosenCircuit) free(ccf);

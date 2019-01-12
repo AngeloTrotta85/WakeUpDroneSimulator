@@ -43,10 +43,14 @@ public:
 	}
 
 public:
-	void init(double kd, double kt, double ke, double a) {
+	void init(double kd, double kt, double ke, double md, double mt, double me, bool us, double a) {
 		k_d = kd;
 		k_t = kt;
 		k_e = ke;
+		m_d = md;
+		m_t = mt;
+		m_e = me;
+		use_Sigmoid = us;
 		alpha = a;
 	}
 
@@ -73,6 +77,11 @@ private:
 	double k_d;
 	double k_t;
 	double k_e;
+
+	double m_d;
+	double m_t;
+	double m_e;
+	bool use_Sigmoid;
 
 	double alpha;
 };

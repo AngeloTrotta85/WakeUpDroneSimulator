@@ -275,6 +275,9 @@ void Simulator::run(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &
 					//c->clusterUAV->mySensorReadings.push_back(read_new);
 					//allReadings.push_back(read_new);
 
+					// remove the booking
+					c->nextSensor->uavBookedReading[c->clusterUAV->id] = false;
+
 					if (c->nextSensor->residual_energy <= 0) {
 						endSimulation = true;
 					}

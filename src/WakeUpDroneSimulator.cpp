@@ -171,8 +171,14 @@ int main(int argc, char **argv) {
 
 	// (constant k at predefined %) k = (ln(1/%))/x       (used 0.1%)
 	double kd = 0.00460517;		//when 0.1? [0.00460517 at 500m] [0.1 at 26m][0.05 at 45m][0.02 at 115m][0.01 at 230m][0.005 at 460m]
-	double kt = 0.000106601;	//when 0.1? [0.000106601 at 6h][0.1 at 26s][0.05 at 45s][0.02 at 115s][0.01 at 230s][0.005 at 460s][0.002 at 1150s][0.001 at 2300s][0.00065 at 3600s][0.0005 at 4600s]
+	double kt = 0.000319803;	//when 0.1? [0.000319803 at 2h][0.000106601 at 6h][0.1 at 26s][0.05 at 45s][0.02 at 115s][0.01 at 230s][0.005 at 460s][0.002 at 1150s][0.001 at 2300s][0.00065 at 3600s][0.0005 at 4600s]
 	double ke = 0.002878231;	//when 0.9? [0.002878231 at 800J][0.001151293 at 2000J][0.1 at 26J][0.05 at 45J][0.02 at 115J][0.01 at 230J][0.005 at 460J][0.002 at 1150J][0.001 at 2300J][0.00065 at 3600s][0.0005 at 4600s][0.000105 at 21600J]
+
+	double md = 1000;
+	double mt = 7200;
+	double me = 1200;
+	bool useSigmoid = false;
+
 	double a = 0.5;
 
 	// UAV parameters
@@ -230,6 +236,10 @@ int main(int argc, char **argv) {
 	const std::string &costant_kd = input.getCmdOption("-kd");
 	const std::string &costant_kt = input.getCmdOption("-kt");
 	const std::string &costant_ke = input.getCmdOption("-ke");
+	const std::string &costant_md = input.getCmdOption("-md");
+	const std::string &costant_mt = input.getCmdOption("-mt");
+	const std::string &costant_me = input.getCmdOption("-me");
+	const std::string &use_sigmoid = input.getCmdOption("-uSigm");
 	const std::string &costant_alpha = input.getCmdOption("-alpha");
 
 	const std::string &energy_UAV = input.getCmdOption("-ieUAV");
@@ -343,6 +353,18 @@ int main(int argc, char **argv) {
 	if (!costant_ke.empty()) {
 		ke = atof(costant_ke.c_str());
 	}
+	if (!costant_md.empty()) {
+		md = atof(costant_md.c_str());
+	}
+	if (!costant_mt.empty()) {
+		mt = atof(costant_mt.c_str());
+	}
+	if (!costant_me.empty()) {
+		me = atof(costant_me.c_str());
+	}
+	if (!use_sigmoid.empty()) {
+		useSigmoid = (atoi(use_sigmoid.c_str()) != 0);
+	}
 	if (!costant_alpha.empty()) {
 		a = atof(costant_alpha.c_str());
 	}
@@ -352,7 +374,7 @@ int main(int argc, char **argv) {
 	Generic::getInstance().setUAVParam(initEnergyUAV, flightAltitude, maxVelocity, motorPower, rechargePower, time2read, energy2read);
 	Generic::getInstance().setWakeUpParam(wakeupPower, wakeupFreq, energy2wakeup, gainTx, gainRx);
 	Generic::getInstance().setStatParam(makeStateDuringSim, statFile, hitmapFile);
-	Loss::getInstance().init(kd, kt, ke, a);
+	Loss::getInstance().init(kd, kt, ke, md, mt, me, useSigmoid, a);
 	Statistics::getInstance().init(timeslots2log);
 
 	if (inputSensorsFileName.empty()) {

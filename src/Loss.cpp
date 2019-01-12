@@ -17,6 +17,11 @@ Loss::Loss() {
 	k_t = 0.02;
 	k_e = 0.0005;
 
+	m_d = 1000;
+	m_t = 7200;
+	m_e = 1200;
+	use_Sigmoid = false;
+
 	alpha = 0.5;
 }
 
@@ -26,8 +31,14 @@ double Loss::calculate_loss_energy(Sensor *se, int tk, std::list<Sensor *> &sl) 
 		if (ss->id != se->id) {
 			double actLoss = 0;
 			if (se->residual_energy < ss->residual_energy) {
-				double exp_exponent = (ss->residual_energy - se->residual_energy) * k_e;
-				actLoss = 1.0 - (1.0 / exp(exp_exponent));
+				if(use_Sigmoid) {
+					double exp_exponent = ((ss->residual_energy - se->residual_energy) - m_e) * k_e;
+					actLoss = 1.0 - (1.0 / (1.0 + exp(exp_exponent)));
+				}
+				else {
+					double exp_exponent = (ss->residual_energy - se->residual_energy) * k_e;
+					actLoss = 1.0 - (1.0 / exp(exp_exponent));
+				}
 
 				if (actLoss > ris) {
 					ris = actLoss;
@@ -39,13 +50,25 @@ double Loss::calculate_loss_energy(Sensor *se, int tk, std::list<Sensor *> &sl) 
 }
 
 double Loss::calculate_loss_distance(Sensor *s1, Sensor *s2) {
-	double exp_exponent = s1->coord.distance(s2->coord) * k_d;
-	return (1.0 / exp(exp_exponent));
+	if (use_Sigmoid) {
+		double exp_exponent = (s1->coord.distance(s2->coord) - m_d) * k_d;
+		return (1.0 / (1.0 + exp(exp_exponent)));
+	}
+	else {
+		double exp_exponent = s1->coord.distance(s2->coord) * k_d;
+		return (1.0 / exp(exp_exponent));
+	}
 }
 
 double Loss::calculate_loss_time(int t1, int t2) {
-	double exp_exponent = abs(t1 - t2) * k_t;
-	return (1.0 / exp(exp_exponent));
+	if (use_Sigmoid) {
+		double exp_exponent = (abs(t1 - t2) - m_t) * k_t;
+		return (1.0 / (1.0 + exp(exp_exponent)));
+	}
+	else {
+		double exp_exponent = abs(t1 - t2) * k_t;
+		return (1.0 / exp(exp_exponent));
+	}
 }
 
 double Loss::calculate_loss_correlation(Sensor *se, int tk, std::list<Sensor *> &sl) {
@@ -92,7 +115,7 @@ double Loss::calculate_loss_full(Sensor *se, int tk, std::list<Sensor *> &sl) {
 	double loss_corr = calculate_loss_correlation(se, tk, sl);
 
 	//double ris = algebraic_sum( alpha * loss_corr, (1 - alpha) * loss_energy);
-	double ris = (alpha * loss_corr) + ((1 - alpha) * loss_energy);
+	double ris = (alpha * loss_corr) + ((1.0 - alpha) * loss_energy);
 
 	//cout << "calculate_loss_full: " << ris << "; loss_energy: " << loss_energy << "; loss_corr: " << loss_corr m<< endl << flush;
 
@@ -139,7 +162,7 @@ double Loss::calculate_loss_full_reading(Readings *re, int tk, std::list<Sensor 
 	double loss_energy = calculate_loss_energy_reading(re, tk, sl);
 	double loss_corr = calculate_loss_correlation_reading(re, tk, sl);
 	//double ris = algebraic_sum( alpha * loss_corr, (1 - alpha) * loss_energy);
-	double ris = (alpha * loss_corr) + ((1 - alpha) * loss_energy);
+	double ris = (alpha * loss_corr) + ((1.0 - alpha) * loss_energy);
 	//std::cout << " [Calculate_loss_full_reading: " << ris << "; loss_energy: " << loss_energy << "; loss_corr: " << loss_corr << "] ";
 	return ris;
 }
@@ -190,7 +213,7 @@ double Loss::calculate_energyGain_full_reading(int tk, std::list<Sensor *> &sl) 
 	for (auto& ss : sl) {
 		for (auto& r : ss->mySensorReadings) {
 			if (r->read_time <= tk) {
-				ris += r->correlation_gain;
+				ris += r->energy_gain;
 			}
 		}
 	}
@@ -202,7 +225,7 @@ double Loss::calculate_energyLoss_full_reading(int tk, std::list<Sensor *> &sl) 
 	for (auto& ss : sl) {
 		for (auto& r : ss->mySensorReadings) {
 			if (r->read_time <= tk) {
-				ris += r->correlation_loss;
+				ris += r->energy_loss;
 			}
 		}
 	}

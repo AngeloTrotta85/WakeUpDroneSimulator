@@ -107,8 +107,8 @@ void TSP2OptEnergyMinEnergy::calculateTSP(CoordCluster *cc, std::list<Sensor *> 
 		else {
 			for (auto& tc : tmpcircuit) free(tc);
 			tmpcircuit.clear();
-			it_as++;
 		}
+		it_as++;
 	}
 
 	//calculateCosts(chosenCircuit, t, e, true);

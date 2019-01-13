@@ -25,6 +25,8 @@
 #include "tsp/TSPNoFullRandom.h"
 #include "tsp/TSP2Opt.h"
 #include "tsp/TSP2OptEnergy.h"
+#include "tsp/TSP2OptEnergyMinDist.h"
+#include "tsp/TSP2OptEnergyMinEnergy.h"
 
 #ifndef TSP_UAV_CODE
 #define TSP_UAV_CODE 100000
@@ -36,13 +38,45 @@ Simulator::Simulator() {
 	simulation_time = 0;
 	end_time = -1;
 
+	timeSlot = 1;
+
+	endSimulation = false;
+	makeLog = false;
+
 	clust = nullptr;
 	tsp = nullptr;
+	mainalgo = ALGO_BEE;
 }
 
 void Simulator::init(int stime, int etime) {
 	simulation_time = stime;
 	end_time = etime;
+}
+
+void Simulator::setMainAlgo(std::string algotype_main) {
+	if (!algotype_main.empty()) {
+		if (algotype_main.compare("bee") == 0) {
+			mainalgo = ALGO_BEE;
+		}
+		else if (algotype_main.compare("beenc") == 0) {
+			mainalgo = ALGO_BEE_NOCLUST;
+		}
+		else if (algotype_main.compare("close") == 0) {
+			mainalgo = ALGO_CLOSEST;
+		}
+		else if (algotype_main.compare("lowbatt") == 0) {
+			mainalgo = ALGO_LOWERBATT;
+		}
+		else {
+			std::cerr << "Unknown algotype for main: \"" << algotype_main << "\". Using default BEE-DRONES" << std::endl;
+			mainalgo = ALGO_BEE;
+		}
+	}
+	else {
+		//default simple k-means
+		std::cerr << "Undefined algotype for main. Using default BEE-DRONES" << std::endl;
+		mainalgo = ALGO_BEE;
+	}
 }
 
 void Simulator::setClusteringAlgo(std::string algotype_clustering) {
@@ -90,6 +124,12 @@ void Simulator::setTSPAlgo(std::string algotype_tsp) {
 		}
 		else if (algotype_tsp.compare("tsp2optE") == 0) {
 			tsp = new TSP2OptEnergy(); // 2-opt algorithm with energy constraint
+		}
+		else if (algotype_tsp.compare("tsp2optEMinDist") == 0) {
+			tsp = new TSP2OptEnergyMinDist(); // 2-opt algorithm with energy constraint - min distance
+		}
+		else if (algotype_tsp.compare("tsp2optEMinEnergy") == 0) {
+			tsp = new TSP2OptEnergyMinEnergy(); // 2-opt algorithm with energy constraint - min energy
 		}
 		else {
 			cerr << "Unknown algotype for tsp: \"" << algotype_tsp << "\". Using default full random TSP" << endl;
@@ -162,10 +202,6 @@ void Simulator::finish(std::vector<CoordCluster *> &clustVec, std::list<Sensor *
 }
 
 void Simulator::run(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &sensList, std::list<Readings *> &allReadings) {
-	int timeSlot = Generic::getInstance().timeSlot;
-	bool endSimulation = false;
-	bool makeLog = false;
-
 	if (!Generic::getInstance().statFilename.empty()) {
 		std::ofstream ofs (Generic::getInstance().statFilename, std::ofstream::out);
 		if (ofs.is_open()) {
@@ -173,6 +209,10 @@ void Simulator::run(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &
 			ofs.close();
 		}
 	}
+
+	timeSlot = Generic::getInstance().timeSlot;
+	makeLog = false;
+	endSimulation = false;
 
 	while (((end_time < 0) || (simulation_time < end_time)) && (!endSimulation)) {
 
@@ -188,12 +228,24 @@ void Simulator::run(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &
 
 			switch (c->clusterUAV->state) {
 			case UAV::IDLE:
-				//cout << endl << "UAV" << c->clusterUAV->id << " is choosing its tour" << endl;
-				cluster_and_tour(clustVec, sensList, c);
 
-				//set the chosen sensors as booked
-				for (auto& s: c->pointsTSP_listFinal) {
-					s->uavBookedReading[c->clusterUAV->id] = true;
+				switch (mainalgo) {
+				case ALGO_BEE:
+				default:
+					calc_path_bee(clustVec, sensList, allReadings, c);
+					break;
+
+				case ALGO_BEE_NOCLUST:
+					calc_path_beenoclust(clustVec, sensList, allReadings, c);
+					break;
+
+				case ALGO_CLOSEST:
+					calc_path_closest(clustVec, sensList, allReadings, c);
+					break;
+
+				case ALGO_LOWERBATT:
+					calc_path_lowerbatt(clustVec, sensList, allReadings, c);
+					break;
 				}
 
 				if (c->pointsTSP_listFinal.size() > 0) {		// IDLE but calculated TSP... let's move!
@@ -283,6 +335,14 @@ void Simulator::run(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &
 					}
 
 					cout << "UAV" << c->clusterUAV->id << " visited S" << c->nextSensor->id << " at time " << simulation_time << endl;
+					cout << "Made new reading with:" <<
+							" fullLoss: " << read_new->full_loss <<
+							" fullGain: " << read_new->gain <<
+							" correlationLoss: " << read_new->correlation_loss <<
+							" correlationGain: " << read_new->correlation_gain <<
+							" energyLoss: " << read_new->energy_loss <<
+							" energyGain: " << read_new->energy_gain <<
+							endl;
 
 					c->timeSpentInWakeRead = 0;
 
@@ -387,4 +447,110 @@ void Simulator::cluster_and_tour(std::vector<CoordCluster *> &clustVec, std::lis
 	cout << "Calculating TSP" << endl << flush;
 	tsp->calculateTSP(actClust, sensList, simulation_time);
 }
+
+
+void Simulator::calc_path_bee(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &sensList, std::list<Readings *> &allReadings, CoordCluster *actClust) {
+	//cout << endl << "UAV" << c->clusterUAV->id << " is choosing its tour" << endl;
+	cluster_and_tour(clustVec, sensList, actClust);
+
+	//set the chosen sensors as booked
+	for (auto& s: actClust->pointsTSP_listFinal) {
+		s->uavBookedReading[actClust->clusterUAV->id] = true;
+	}
+}
+
+void Simulator::calc_path_beenoclust(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &sensList, std::list<Readings *> &allReadings, CoordCluster *actClust) {
+	actClust->pointsTSP_listFinal.clear();
+	//clust->cluster(clustVec, sensList, simulation_time, c->clusterUAV->id);
+	actClust->pointsList.clear();
+	for (auto& ss : sensList) {
+		bool isOthers = false;
+		for (auto& cc : clustVec) {
+			for (auto& sb : cc->pointsTSP_listFinal){
+				if (ss->id == sb->id) {
+					isOthers = true;
+					break;
+				}
+			}
+			if (isOthers) break;
+		}
+		if (!isOthers) {
+			actClust->pointsList.push_back(ss);
+		}
+	}
+	//update cluster head (useless)
+	actClust->clusterHead->x = actClust->clusterHead->y = actClust->clusterHead->z = 0;// = MyCoord(0, 0);
+	for (auto& ss : actClust->pointsList) {
+		actClust->clusterHead->x += ss->coord.x;
+		actClust->clusterHead->y += ss->coord.y;
+	}
+	if (actClust->pointsList.size() > 0) {
+		actClust->clusterHead->x /= (double) actClust->pointsList.size();
+		actClust->clusterHead->y /= (double) actClust->pointsList.size();
+	}
+
+	cout << "Calculating TSP" << endl << flush;
+	tsp->calculateTSP(actClust, sensList, simulation_time);
+}
+
+void Simulator::calc_path_closest(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &sensList, std::list<Readings *> &allReadings, CoordCluster *actClust) {
+
+	// are all the same, change only the tsp algorithm
+	calc_path_beenoclust(clustVec, sensList, allReadings, actClust);
+
+
+	/*
+	actClust->pointsTSP_listFinal.clear();
+	//clust->cluster(clustVec, sensList, simulation_time, c->clusterUAV->id);
+	actClust->pointsList.clear();
+	for (auto& ss : sensList) {
+		actClust->pointsList.push_back(ss);
+	}
+	//update cluster head (useless)
+	actClust->clusterHead->x = actClust->clusterHead->y = actClust->clusterHead->z = 0;// = MyCoord(0, 0);
+	for (auto& ss : actClust->pointsList) {
+		actClust->clusterHead->x += ss->coord.x;
+		actClust->clusterHead->y += ss->coord.y;
+	}
+	if (actClust->pointsList.size() > 0) {
+		actClust->clusterHead->x /= (double) actClust->pointsList.size();
+		actClust->clusterHead->y /= (double) actClust->pointsList.size();
+	}
+
+	cout << "Calculating TSP" << endl << flush;
+	tsp->calculateTSP(actClust, sensList, simulation_time);
+	*/
+}
+
+void Simulator::calc_path_lowerbatt(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &sensList, std::list<Readings *> &allReadings, CoordCluster *actClust) {
+
+	// are all the same, change only the tsp algorithm
+	calc_path_beenoclust(clustVec, sensList, allReadings, actClust);
+
+
+	/*
+	actClust->pointsTSP_listFinal.clear();
+	//clust->cluster(clustVec, sensList, simulation_time, c->clusterUAV->id);
+	actClust->pointsList.clear();
+	for (auto& ss : sensList) {
+		actClust->pointsList.push_back(ss);
+	}
+	//update cluster head (useless)
+	actClust->clusterHead->x = actClust->clusterHead->y = actClust->clusterHead->z = 0;// = MyCoord(0, 0);
+	for (auto& ss : actClust->pointsList) {
+		actClust->clusterHead->x += ss->coord.x;
+		actClust->clusterHead->y += ss->coord.y;
+	}
+	if (actClust->pointsList.size() > 0) {
+		actClust->clusterHead->x /= (double) actClust->pointsList.size();
+		actClust->clusterHead->y /= (double) actClust->pointsList.size();
+	}
+
+	cout << "Calculating TSP" << endl << flush;
+	tsp->calculateTSP(actClust, sensList, simulation_time);
+	*/
+}
+
+
+
 

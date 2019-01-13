@@ -47,11 +47,20 @@ public:
 	//       due to the compilers behavior to check accessibility
 	//       before deleted status
 public:
+	typedef enum {
+		ALGO_BEE,
+		ALGO_BEE_NOCLUST,
+		ALGO_CLOSEST,
+		ALGO_LOWERBATT
+	} Main_Algo;
+
+public:
 
 	void init(int stime, int etime);
 	void run(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &sensList, std::list<Readings *> &allReadings);
 	void finish(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &sensList, std::list<Readings *> &allReadings);
 
+	void setMainAlgo(std::string algotype_main);
 	void setClusteringAlgo(std::string algotype_clustering);
 	void setTSPAlgo(std::string algotype_tsp);
 
@@ -61,12 +70,28 @@ public:
 protected:
 	void cluster_and_tour(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &sensList, CoordCluster *actClust);
 
+	void mainalgo_bee(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &sensList, std::list<Readings *> &allReadings);
+	void mainalgo_beenoclust(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &sensList, std::list<Readings *> &allReadings);
+	void mainalgo_closest(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &sensList, std::list<Readings *> &allReadings);
+	void mainalgo_lowerbatt(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &sensList, std::list<Readings *> &allReadings);
+
+	void calc_path_bee(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &sensList, std::list<Readings *> &allReadings, CoordCluster *actClust);
+	void calc_path_beenoclust(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &sensList, std::list<Readings *> &allReadings, CoordCluster *actClust);
+	void calc_path_closest(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &sensList, std::list<Readings *> &allReadings, CoordCluster *actClust);
+	void calc_path_lowerbatt(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &sensList, std::list<Readings *> &allReadings, CoordCluster *actClust);
+
 private:
 	int simulation_time;
 	int end_time;
 
+	int timeSlot;
+
+	bool endSimulation;
+	bool makeLog;
+
 	Clustering *clust;
 	TSP *tsp;
+	Main_Algo mainalgo;
 };
 
 #endif /* SIMULATOR_H_ */

@@ -232,6 +232,7 @@ int main(int argc, char **argv) {
 
 	const std::string &algotype_clustering = input.getCmdOption("-algoClust");
 	const std::string &algotype_tsp = input.getCmdOption("-algoTSP");
+	const std::string &algotype_main = input.getCmdOption("-algoMain");
 
 	const std::string &costant_kd = input.getCmdOption("-kd");
 	const std::string &costant_kt = input.getCmdOption("-kt");
@@ -407,6 +408,7 @@ int main(int argc, char **argv) {
 	//Sensor::printLogsSensors(sensorsList, time_N);
 
 	Simulator::getInstance().init(0, time_N);
+	Simulator::getInstance().setMainAlgo(algotype_main);
 	Simulator::getInstance().setClusteringAlgo(algotype_clustering);
 	Simulator::getInstance().setTSPAlgo(algotype_tsp);
 	Simulator::getInstance().run(clustersVec, sensorsList, allReadings);

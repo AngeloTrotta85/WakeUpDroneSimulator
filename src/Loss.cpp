@@ -75,7 +75,7 @@ double Loss::calculate_loss_correlation(Sensor *se, int tk, std::list<Sensor *> 
 	double ris = 0;
 	for (auto& ss : sl) {
 		for (auto& r : ss->mySensorReadings) {
-			if (r->read_time < tk) {
+			if (r->read_time <= tk) {
 				double loss_dist = calculate_loss_distance(se, ss);
 				double loss_time = calculate_loss_time(tk, r->read_time);
 				double actLoss = loss_dist * loss_time;
@@ -84,6 +84,9 @@ double Loss::calculate_loss_correlation(Sensor *se, int tk, std::list<Sensor *> 
 				}
 
 				if (loss_time < MIN_TIME_LOSS) break;
+			}
+			/*else if (r->read_time == tk) {
+
 			}
 			else if ((r->read_time == tk) && (r->sequenceReading < (*se->mySensorReadings.begin())->sequenceReading)) {
 				double loss_dist = calculate_loss_distance(se, ss);
@@ -94,7 +97,7 @@ double Loss::calculate_loss_correlation(Sensor *se, int tk, std::list<Sensor *> 
 				}
 
 				if (loss_time < MIN_TIME_LOSS) break;
-			}
+			}*/
 		}
 		if (ss->isBooked()) {
 			double loss_dist = calculate_loss_distance(se, ss);
@@ -111,8 +114,11 @@ double Loss::calculate_loss_correlation(Sensor *se, int tk, std::list<Sensor *> 
 }
 
 double Loss::calculate_loss_full(Sensor *se, int tk, std::list<Sensor *> &sl) {
+	//std::cout << "calculate_loss_full 1" << std::endl << std::flush;
 	double loss_energy = calculate_loss_energy(se, tk, sl);
+	//std::cout << "calculate_loss_full 2" << std::endl << std::flush;
 	double loss_corr = calculate_loss_correlation(se, tk, sl);
+	//std::cout << "calculate_loss_full 3" << std::endl << std::flush;
 
 	//double ris = algebraic_sum( alpha * loss_corr, (1 - alpha) * loss_energy);
 	double ris = (alpha * loss_corr) + ((1.0 - alpha) * loss_energy);

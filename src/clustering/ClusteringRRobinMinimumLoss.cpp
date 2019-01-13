@@ -47,35 +47,56 @@ void ClusteringRRobinMinimumLoss::cluster(std::vector<CoordCluster *> &cv, std::
 		sl_bkp.push_back(ss);
 	}
 
+	//cout << "Clustering after shuffle. sl_bkp.size: " << sl_bkp.size() << " and cv.size: " << cv.size() << endl << flush;
+
 	auto it_c = cv.begin();
 	while (!sl_bkp.empty()) {
+
+		//cout << "Clustering while 1" << endl << flush;
 
 		if (round > (*it_c)->pointsTSP_listFinal.size()) {
 			std::list<Sensor *>::iterator closestSensor;
 			double minLossC = std::numeric_limits<double>::max();
 
-			for (auto it_s = sl_bkp.begin(); it_s != sl_bkp.end(); it_s++) {
-				double actLoss_only = Loss::getInstance().calculate_loss_full(*it_s, time_now, sl);
-				double actLoss = (*it_s)->coord.distance((*it_c)->clusterUAV->recharge_coord) * actLoss_only;
+			//cout << "Clustering while 1_1" << endl << flush;
 
+			for (auto it_s = sl_bkp.begin(); it_s != sl_bkp.end(); it_s++) {
+				double actLoss_only;
+				double actLoss;
+
+				//cout << "Clustering while 1_1_1" << endl << flush;
+				actLoss_only = Loss::getInstance().calculate_loss_full(*it_s, time_now, sl);
+				//cout << "Clustering while 1_1_2" << endl << flush;
+				actLoss = (*it_s)->coord.distance((*it_c)->clusterUAV->recharge_coord) * actLoss_only;
+				//cout << "Clustering while 1_1_3" << endl << flush;
 				if (actLoss < minLossC) {
 					minLossC = actLoss;
 					closestSensor = it_s;
 				}
 			}
 
+			//cout << "Clustering while 1_2" << endl << flush;
+
 			if ((uav_id < 0) || (uav_id == (*it_c)->clusterUAV->id)) {
 				(*it_c)->pointsList.push_back(*closestSensor);
 			}
+			//cout << "Clustering while 1_3" << endl << flush;
 			sl_bkp.erase(closestSensor);
+			//cout << "Clustering while 1_4" << endl << flush;
 		}
+
+		//cout << "Clustering while 2" << endl << flush;
 
 		it_c++;
 		if (it_c == cv.end()){
 			it_c = cv.begin();
 			++round;
 		}
+
+		//cout << "Clustering while 3" << endl << flush;
 	}
+
+	//cout << "Clustering updating cluster heads" << endl << flush;
 
 	// update the cluster heads
 	for (auto& cc : cv) {

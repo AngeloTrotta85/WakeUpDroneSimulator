@@ -382,7 +382,6 @@ void Simulator::run(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &
 
 void Simulator::cluster_and_tour(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &sensList, CoordCluster *actClust) {
 	actClust->pointsTSP_listFinal.clear();
-	//cout << "Calculating Clustering" << endl << flush;
 	clust->cluster(clustVec, sensList, simulation_time, actClust->clusterUAV->id);
 
 	cout << "Calculating TSP" << endl << flush;

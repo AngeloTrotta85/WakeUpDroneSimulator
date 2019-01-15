@@ -30,7 +30,7 @@ public:
 
 public:
 	static bool sortCosts (const std::pair<Sensor *, double> first, const std::pair<Sensor *, double> second) {
-		return first.second < second.second;
+		return first.second > second.second;
 	}
 };
 

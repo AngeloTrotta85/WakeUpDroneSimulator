@@ -83,6 +83,7 @@ void TSP2OptEnergy::calculateTSP(CoordCluster *cc, std::list<Sensor *> &sl, int 
 	cout << endl;
 
 	list<Sensor *> chosenSensors;
+	list<Sensor *> triedSensors;
 	list<TSP2OptEnergyEdge *> chosenCircuit;
 
 	chosenSensors.push_back(uavDummySensor);
@@ -96,6 +97,14 @@ void TSP2OptEnergy::calculateTSP(CoordCluster *cc, std::list<Sensor *> &sl, int 
 			if (csc->id == as.first->id) {
 				alreadyChosen = true;
 				break;
+			}
+		}
+		if (!alreadyChosen) {
+			for (auto& csc : triedSensors) {
+				if (csc->id == as.first->id) {
+					alreadyChosen = true;
+					break;
+				}
 			}
 		}
 		if (alreadyChosen) {
@@ -128,6 +137,7 @@ void TSP2OptEnergy::calculateTSP(CoordCluster *cc, std::list<Sensor *> &sl, int 
 			it_as = allSensors.begin();
 		}
 		else {
+			triedSensors.push_back(as.first);
 			for (auto& tc : tmpcircuit) free(tc);
 			tmpcircuit.clear();
 			it_as++;
@@ -152,6 +162,7 @@ void TSP2OptEnergy::calculateTSP(CoordCluster *cc, std::list<Sensor *> &sl, int 
 	chosenCircuit.clear();
 	allSensors.clear();
 	chosenSensors.clear();
+	triedSensors.clear();
 }
 
 void TSP2OptEnergy::calculateTSP_subset(Sensor *uavDummySensor , list<Sensor *> &sList, list<TSP2OptEnergyEdge *> &fCircuit) {

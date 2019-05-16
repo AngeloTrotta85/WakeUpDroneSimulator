@@ -77,6 +77,7 @@ private:
 void generateDOTfile(std::string outFileName, std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &sensList,
 		double sSize, double pSize, int timeNow){
 	std::ofstream fout(outFileName, std::ofstream::out);
+	double mf = 0.01;
 
 	if (fout.is_open()) {
 
@@ -84,24 +85,24 @@ void generateDOTfile(std::string outFileName, std::vector<CoordCluster *> &clust
 
 		fout 	<< "{node [style=invis] P00 P01 P10 P11}"
 				<< "P00 [pos = \"0,0!\"]"
-				<< "P01 [pos = \"0," << sSize << "!\"]"
-				<< "P10 [pos = \"" << sSize << ",0!\"]"
-				<< "P11 [pos = \"" << sSize << "," << sSize << "!\"]"
+				<< "P01 [pos = \"0," << sSize*mf << "!\"]"
+				<< "P10 [pos = \"" << sSize*mf << ",0!\"]"
+				<< "P11 [pos = \"" << sSize*mf << "," << sSize*mf << "!\"]"
 				<< endl << endl;
 
 		for (auto& s : sensList) {
 			double sLossFull = Loss::getInstance().calculate_loss_full(s, timeNow, sensList);
 			double actSize = pSize * (2 - sLossFull);
 			fout << "B" << s->id << " [shape=\"point\" color=\"" << "grey"
-					<< "\" pos=\"" << s->coord.x << "," << s->coord.y << "!\" width="
-					<< actSize << ", height=" << actSize << "]" << endl;
+					<< "\" pos=\"" << s->coord.x*mf << "," << s->coord.y*mf << "!\" width="
+					<< actSize*mf << ", height=" << actSize*mf << "]" << endl;
 		}
 
 		for (int i = 0; i < (int) clustVec.size(); i++) {
 			std::string color = std::string(COLOR_LIST_10[i%10]);
 
 			fout << "U" << clustVec[i]->clusterUAV->id << " [shape=\"star\" color=\"" << color << "\" pos=\""
-					<< clustVec[i]->clusterUAV->recharge_coord.x << "," << clustVec[i]->clusterUAV->recharge_coord.y << "!\" width=" << pSize*3 << ", height=" << pSize*3 << "]" << endl;
+					<< clustVec[i]->clusterUAV->recharge_coord.x*mf << "," << clustVec[i]->clusterUAV->recharge_coord.y*mf << "!\" width=" << pSize*3*mf << ", height=" << pSize*3*mf << "]" << endl;
 
 			//fout << "C" << clustVec[i]->clusterUAV->id << " [shape=\"diamond\" color=\"" << color << "\" pos=\""
 			//		<< clustVec[i]->clusterHead->x << "," << clustVec[i]->clusterHead->y << "!\" width=" << pSize*2 << ", height=" << pSize*2 << "]" << endl;
@@ -121,8 +122,8 @@ void generateDOTfile(std::string outFileName, std::vector<CoordCluster *> &clust
 
 				double actSize = pSize * (1.0 + (2.0 * (1.0 - sLossFull)));//;(2 - sLossFull);
 				fout << "S" << p->id << " [shape=\"point\" color=\"" << color
-						<< "\" pos=\"" << p->coord.x << "," << p->coord.y << "!\" width="
-						<< actSize << ", height=" << actSize << "]" << endl;
+						<< "\" pos=\"" << p->coord.x*mf << "," << p->coord.y*mf << "!\" width="
+						<< actSize*mf << ", height=" << actSize*mf << "]" << endl;
 
 				/*if (i == maxIdx) {
 					fout << "S" << count << "_rad [shape=\"circle\" color=\"" << "black" << "\" style=\"dotted\" label=\"\" pos=\""

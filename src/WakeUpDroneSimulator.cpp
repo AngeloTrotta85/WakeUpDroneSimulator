@@ -169,6 +169,7 @@ int main(int argc, char **argv) {
 	int nUAV = 3;
 	int time_N = 3600;
 	int timeSlot = 1;
+	Simulator::Simu_type st = Simulator::SIMU_NORMAL;
 
 	// (constant k at predefined %) k = (ln(1/%))/x       (used 0.1%)
 	double kd = 0.00460517;		//when 0.1? [0.00460517 at 500m] [0.1 at 26m][0.05 at 45m][0.02 at 115m][0.01 at 230m][0.005 at 460m]
@@ -263,6 +264,8 @@ int main(int argc, char **argv) {
 	const std::string &energy_to_wakeup = input.getCmdOption("-e2wu");
 	const std::string &gain_antenna_tx = input.getCmdOption("-gTx");
 	const std::string &gain_antenna_rx = input.getCmdOption("-gRx");
+
+	const std::string &simu_type = input.getCmdOption("-st");
 
 	if (!seedUser.empty()) {
 		int seedR = atoi(seedUser.c_str());
@@ -370,6 +373,14 @@ int main(int argc, char **argv) {
 	if (!costant_alpha.empty()) {
 		a = atof(costant_alpha.c_str());
 	}
+	if (!simu_type.empty()) {
+		if (simu_type.compare("normal") == 0) {
+			st = Simulator::SIMU_NORMAL;
+		}
+		else if (simu_type.compare("multiflow") == 0){
+			st = Simulator::SIMU_MULTI_FLOW;
+		}
+	}
 
 	Generic::getInstance().init(timeSlot);
 	Generic::getInstance().setSensorParam(initEnergySensor, sensorSelfDischarge, eON, eBOOT, fullRandomSensors);
@@ -408,7 +419,7 @@ int main(int argc, char **argv) {
 
 	//Sensor::printLogsSensors(sensorsList, time_N);
 
-	Simulator::getInstance().init(0, time_N);
+	Simulator::getInstance().init(st, 0, time_N);
 	Simulator::getInstance().setMainAlgo(algotype_main);
 	Simulator::getInstance().setClusteringAlgo(algotype_clustering);
 	Simulator::getInstance().setTSPAlgo(algotype_tsp);

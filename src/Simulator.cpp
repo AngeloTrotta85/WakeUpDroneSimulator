@@ -46,9 +46,11 @@ Simulator::Simulator() {
 	clust = nullptr;
 	tsp = nullptr;
 	mainalgo = ALGO_BEE;
+	simtype = SIMU_NORMAL;
 }
 
-void Simulator::init(int stime, int etime) {
+void Simulator::init(Simu_type st, int stime, int etime) {
+	simtype = st;
 	simulation_time = stime;
 	end_time = etime;
 }
@@ -202,6 +204,19 @@ void Simulator::finish(std::vector<CoordCluster *> &clustVec, std::list<Sensor *
 }
 
 void Simulator::run(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &sensList, std::list<Readings *> &allReadings) {
+	switch (simtype) {
+		case SIMU_NORMAL:
+		default:
+			run_normal(clustVec, sensList, allReadings);
+			break;
+
+		case SIMU_MULTI_FLOW:
+			run_multiflow(clustVec, sensList, allReadings);
+			break;
+	}
+}
+
+void Simulator::run_normal(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &sensList, std::list<Readings *> &allReadings) {
 	if (!Generic::getInstance().statFilename.empty()) {
 		std::ofstream ofs (Generic::getInstance().statFilename, std::ofstream::out);
 		if (ofs.is_open()) {
@@ -550,6 +565,42 @@ void Simulator::calc_path_lowerbatt(std::vector<CoordCluster *> &clustVec, std::
 	tsp->calculateTSP(actClust, sensList, simulation_time);
 	*/
 }
+
+
+
+
+
+
+
+
+
+
+
+
+void Simulator::run_multiflow(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &sensList, std::list<Readings *> &allReadings) {
+	if (!Generic::getInstance().statFilename.empty()) {
+		std::ofstream ofs (Generic::getInstance().statFilename, std::ofstream::out);
+		if (ofs.is_open()) {
+			ofs << "";
+			ofs.close();
+		}
+	}
+
+	MultiFlow mf;
+
+	for (auto& cv : clustVec) {
+		mf.addChargStationAndUAV(*(cv->clusterHead), cv->clusterUAV);
+	}
+	for (auto& s : sensList) {
+		mf.addSensor(s);
+	}
+
+	mf.run();
+
+}
+
+
+
 
 
 

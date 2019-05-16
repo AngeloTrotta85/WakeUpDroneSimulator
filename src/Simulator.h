@@ -21,6 +21,7 @@
 #include "clustering/Clustering.h"
 #include "tsp/TSP.h"
 #include "CoordCluster.h"
+#include "MultiFlow.h"
 
 class Simulator {
 public:
@@ -55,9 +56,19 @@ public:
 	} Main_Algo;
 
 public:
+	typedef enum {
+		SIMU_NORMAL,
+		SIMU_MULTI_FLOW
+	} Simu_type;
 
-	void init(int stime, int etime);
+public:
+
+	void init(Simu_type st, int stime, int etime);
+
 	void run(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &sensList, std::list<Readings *> &allReadings);
+	void run_normal(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &sensList, std::list<Readings *> &allReadings);
+	void run_multiflow(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &sensList, std::list<Readings *> &allReadings);
+
 	void finish(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &sensList, std::list<Readings *> &allReadings);
 
 	void setMainAlgo(std::string algotype_main);
@@ -92,6 +103,7 @@ private:
 	Clustering *clust;
 	TSP *tsp;
 	Main_Algo mainalgo;
+	Simu_type simtype;
 };
 
 #endif /* SIMULATOR_H_ */

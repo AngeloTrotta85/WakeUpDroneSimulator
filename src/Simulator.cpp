@@ -595,7 +595,7 @@ void Simulator::run_multiflow(std::vector<CoordCluster *> &clustVec, std::list<S
 		mf.addSensor(s);
 	}
 
-	mf.run();
+	mf.run(end_time);
 
 }
 

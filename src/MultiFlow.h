@@ -14,28 +14,56 @@
 #include "UAV.h"
 #include "Sensor.h"
 #include "MyCoord.h"
+#include "Generic.h"
 
 using namespace std;
 
-class MultiFlow {
+class ChargingNode {
 public:
-	typedef struct ChargingStation{
-		int id;
-		UAV* u;
-		MyCoord pos;
-	} ChargingStation;
+	int id;
+	UAV* u;
+	MyCoord pos;
+	int lastTimestamp;
+};
 
+class SensorNode {
+public:
+	typedef struct SensorRead{
+		int readTime;
+		UAV *uav;
+	} SensorRead;
+public:
+	Sensor* sens;
+	list<SensorRead> readings;
+	int lastTimestamp;
+};
+
+class MultiFlow {
 public:
 	MultiFlow();
 
 	void addSensor(Sensor *s);
 	void addChargStationAndUAV(MyCoord c, UAV *u);
 
-	void run(void);
+	void run(int end_time);
+
+	double calculate_pWU(void);
+
+	ChargingNode *getLeftMostUAV(int end_time);
+	int updateSensorsEnergy(int starttime, int endtime);
+	void calculateTSP(ChargingNode *leftmost);
+
+	double calcPowEta(int t);
+	double energy_loss_onArc(int tstart);
 
 private:
-	map<int, ChargingStation> cs_map;
-	list<Sensor *> sens_list;
+	map<int, ChargingNode *> cs_map;
+	list<SensorNode *> sens_list;
+
+	int actSensorTimeStamp;
+	int actUAVTimeStamp;
+
+	double pWU;
 };
 
 #endif /* MULTIFLOW_H_ */

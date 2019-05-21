@@ -81,6 +81,20 @@ public:
 		hitmapFilename = std::string(hitmapFile);
 	}
 
+	void setMultiFlowParam(int tsup, int ttout, int numr, double ps_sup, double ps_tx,
+			double ps_rx, double pu_sup, double pu_tx, double pu_rx, double pu_fly) {
+		tstartup = tsup;
+		ttimeout = ttout;
+		nr = numr;
+		pSstartup = ps_sup;
+		pStx = ps_tx;
+		pSrx = ps_rx;
+		pUstartup = pu_sup;
+		pUtx = pu_tx;
+		pUrx = pu_rx;
+		pUfly = pu_fly;
+	}
+
 	double getTime2Travel(MyCoord start, MyCoord end);
 	double getEnergy2Travel(MyCoord start, MyCoord end);
 
@@ -112,6 +126,17 @@ public:
 	bool makeRunSimStat;
 	std::string statFilename;
 	std::string hitmapFilename;
+
+	int tstartup;
+	int ttimeout;
+	int nr;
+	double pSstartup;
+	double pStx;
+	double pSrx;
+	double pUstartup;
+	double pUtx;
+	double pUrx;
+	double pUfly;
 };
 
 #endif /* GENERIC_H_ */

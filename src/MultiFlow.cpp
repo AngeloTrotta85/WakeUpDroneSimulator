@@ -98,8 +98,79 @@ void MultiFlow::calculateTSP(ChargingNode *leftmost) {
 
 }
 
+double MultiFlow::calcProb_EReceived(double e) {
+	double ris = 0.2;
+	return ris;
+}
+
+void MultiFlow::calcProb_EReceivedTime_rec(double &acc, std::vector<double> &vect, int t, double e, double deltae) {
+	double ris = 0;
+
+	//cout << "vect -> [";
+	//for(auto& val : vect)
+	//	cout << val << " ";
+	//cout << "]";
+
+	double sume = 0;
+	for (auto& ei : vect){
+		sume += ei;
+	}
+	if (sume == e) {
+		double product = 1.0;
+		for (int j = 0; j < t; j++) {
+			product *= calcProb_EReceived(vect[j]);
+		}
+		ris += product;
+
+		//cout << " --> OK" << endl;
+	}
+	//else {
+		//cout << endl;
+	//}
+
+	acc += ris;
+
+	if (sume < (t*e)) {
+		for(int k = 0; k < t; k++){
+			vect[k] += deltae;
+			if (vect[k] > e) {
+				vect[k] = 0;
+			}
+			else {
+				break;
+			}
+		}
+
+		return calcProb_EReceivedTime_rec(acc, vect, t, e, deltae);
+	}
+}
+
+double MultiFlow::calcProb_EReceivedTime(double e, double deltae, int t) {
+	double ris = 0;
+	std::vector<double> vect_e(t, 0);
+
+	//cout << "Making recursion for " << e << endl;
+	calcProb_EReceivedTime_rec(ris, vect_e, t, e, deltae);
+	//cout << endl;
+
+	return ris;
+}
+
 double MultiFlow::calculate_pWU(void) {
-	return 1;
+	double pwu = 1;
+	double ewu = 8;
+	double deltae = 2;
+	int twu = 3;
+
+	double sumprob = 0;
+	for (double e = 0; e <= (ewu/deltae); e+= deltae) {
+		sumprob += calcProb_EReceivedTime(e * deltae, deltae, twu);
+	}
+	pwu = 1.0 - (deltae * sumprob);
+
+	cerr << "fine pWU: " << pwu << endl;
+	exit(EXIT_FAILURE);
+	return pwu;
 }
 
 void MultiFlow::run(int end_time) {

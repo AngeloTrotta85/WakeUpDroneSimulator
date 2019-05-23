@@ -47,6 +47,9 @@ public:
 
 	void run(int end_time);
 
+	double calcProb_EReceived(double e);
+	void calcProb_EReceivedTime_rec(double &acc, std::vector<double> &vect, int t, double e, double deltae);
+	double calcProb_EReceivedTime(double e, double deltae, int t);
 	double calculate_pWU(void);
 
 	ChargingNode *getLeftMostUAV(int end_time);

@@ -206,7 +206,18 @@ int main(int argc, char **argv) {
 	double gainRx = 1;					// dBi
 	double energy2wakeup = 0.00001;		// Joule
 
-	//Statistict
+	//MultiFlow
+	int tsup = 20;						// time-slots -> t_{startup}
+	int ttout = 20;						// time-slots -> t_{timeout}
+	int numr = 3;						// n_r
+	double ps_sup = 0;					// Watt -> p^S_{startup}
+	double ps_tx = 0;					// Watt -> p^S_{tx}
+	double ps_rx = 0;					// Watt -> p^S_{rx}
+	double pu_sup = 0;					// Watt -> p^U_{startup}
+	double pu_tx = 0;					// Watt -> p^U_{tx}
+	double pu_rx = 0;					// Watt -> p^U_{rx}
+
+	//Statistics
 	int timeslots2log = 30;
 	bool makeStateDuringSim = false;
 
@@ -266,6 +277,16 @@ int main(int argc, char **argv) {
 	const std::string &gain_antenna_rx = input.getCmdOption("-gRx");
 
 	const std::string &simu_type = input.getCmdOption("-st");
+
+	const std::string &multiflow_t_startup = input.getCmdOption("-mfTstartup");
+	const std::string &multiflow_t_timeout = input.getCmdOption("-mfTtimeout");
+	const std::string &multiflow_nr = input.getCmdOption("-mfnr");
+	const std::string &multiflow_pS_startup = input.getCmdOption("-mfpSstartup");
+	const std::string &multiflow_pS_tx = input.getCmdOption("-mfpStx");
+	const std::string &multiflow_pS_rx = input.getCmdOption("-mfpSrx");
+	const std::string &multiflow_pU_startup = input.getCmdOption("-mfpUstartup");
+	const std::string &multiflow_pU_tx = input.getCmdOption("-mfpUtx");
+	const std::string &multiflow_pU_rx = input.getCmdOption("-mfpUrx");
 
 	if (!seedUser.empty()) {
 		int seedR = atoi(seedUser.c_str());
@@ -381,12 +402,40 @@ int main(int argc, char **argv) {
 			st = Simulator::SIMU_MULTI_FLOW;
 		}
 	}
+	if (!multiflow_t_startup.empty()) {
+		tsup = atoi(multiflow_t_startup.c_str());
+	}
+	if (!multiflow_t_timeout.empty()) {
+		ttout = atoi(multiflow_t_timeout.c_str());
+	}
+	if (!multiflow_nr.empty()) {
+		numr = atoi(multiflow_nr.c_str());
+	}
+	if (!multiflow_pS_startup.empty()) {
+		ps_sup = atof(multiflow_pS_startup.c_str());
+	}
+	if (!multiflow_pS_tx.empty()) {
+		ps_tx = atof(multiflow_pS_tx.c_str());
+	}
+	if (!multiflow_pS_rx.empty()) {
+		ps_rx = atof(multiflow_pS_rx.c_str());
+	}
+	if (!multiflow_pU_startup.empty()) {
+		pu_sup = atof(multiflow_pU_startup.c_str());
+	}
+	if (!multiflow_pU_tx.empty()) {
+		pu_tx = atof(multiflow_pU_tx.c_str());
+	}
+	if (!multiflow_pU_rx.empty()) {
+		pu_rx = atof(multiflow_pU_rx.c_str());
+	}
 
 	Generic::getInstance().init(timeSlot);
 	Generic::getInstance().setSensorParam(initEnergySensor, sensorSelfDischarge, eON, eBOOT, fullRandomSensors);
 	Generic::getInstance().setUAVParam(initEnergyUAV, flightAltitude, maxVelocity, motorPower, rechargePower, time2read, energy2read);
 	Generic::getInstance().setWakeUpParam(wakeupPower, wakeupFreq, energy2wakeup, gainTx, gainRx);
 	Generic::getInstance().setStatParam(makeStateDuringSim, statFile, hitmapFile);
+	Generic::getInstance().setMultiFlowParam(tsup, ttout, numr, ps_sup, ps_tx, ps_rx, pu_sup, pu_tx, pu_rx, 4*motorPower);
 	Loss::getInstance().init(kd, kt, ke, md, mt, me, useSigmoid, a);
 	Statistics::getInstance().init(timeslots2log);
 

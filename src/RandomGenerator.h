@@ -44,6 +44,11 @@ public:
         int getIntUniform (int min, int max);
         double getRealNormal (double mean, double stdev);
 
+        static double get_PDF_normal(double x, double mu, double sigma2) {
+        	return (1.0 / sqrt(2.0 * M_PI * sigma2)) * exp(-(pow(x - mu, 2.0)/(2.0 * sigma2)));
+        	//return ((1.0 / (sqrt(2.0 * M_PI * sigma2))) * exp());
+        }
+
 private:
 	std::default_random_engine generator_rand;
 };

@@ -80,6 +80,13 @@ class MyCoord
     static bool close(double one, double two) { return fabs(one - two) < EPSILON; }
 
     /**
+     * Tests whether two doubles are close enough to be declared equal.
+     * Returns true if parameters are at most epsilon apart, false
+     * otherwise
+     */
+    static bool close(double one, double two, double eps) { return fabs(one - two) < eps; }
+
+    /**
      * Returns the remainder r on division of dividend a by divisor n,
      * using floored division. The remainder r has the same sign as the divisor n.
      */

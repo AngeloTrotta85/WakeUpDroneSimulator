@@ -37,7 +37,7 @@ public:
 
 
 public:
-	void init(int ts) {
+	void init(double ts) {
 		timeSlot = ts;
 	}
 	void setSensorParam(double initEnergySensor, double sensorSelfDischarge, double eON, double eBOOT, bool fullRandom) {
@@ -67,12 +67,18 @@ public:
 		uavTime2Read = time2read;
 		uavEnergy2Read = energy2read;
 	}
-	void setWakeUpParam(double wakeupPower, double wakeupFrequency, double energy2wakeup, double gTx, double gRx) {
+	void setWakeUpParam(double wakeupPower, double wakeupMinPower, double wakeupFrequency, double energy2wakeup, double gTx, double gRx,
+			double gUm, double aUm, double gSm, double aSm) {
 		wakeupTxPower = wakeupPower;
 		wakeupTxFrequency = wakeupFrequency;
+		wakeupTxMinPower = wakeupMinPower;
 		energyToWakeUp = energy2wakeup;
 		antennaGainTx = gTx;
 		antennaGainRx = gRx;
+		gUmax = gUm;
+		alphaUmax = aUm;
+		gSmax = gSm;
+		alphaSmax = aSm;
 	}
 
 	void setStatParam(bool makeOnrunStat, const std::string statFile, const std::string hitmapFile) {
@@ -104,7 +110,7 @@ public:
 	double getEnergy2WakeRead(MyCoord uavCoord, MyCoord sensorCoord);
 
 public:
-	int timeSlot;
+	double timeSlot;
 	double initSensorEnergy;
 	double initUAVEnergy;
 	double flightAltitudeUAV;
@@ -119,6 +125,7 @@ public:
 	double energyON;
 	double energyBOOT;
 	double wakeupTxPower;
+	double wakeupTxMinPower;
 	double wakeupTxFrequency;
 	double energyToWakeUp;
 	double antennaGainTx;
@@ -137,6 +144,10 @@ public:
 	double pUtx;
 	double pUrx;
 	double pUfly;
+	double gUmax;
+	double alphaUmax;
+	double gSmax;
+	double alphaSmax;
 };
 
 #endif /* GENERIC_H_ */

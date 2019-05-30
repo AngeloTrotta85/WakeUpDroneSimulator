@@ -168,7 +168,7 @@ int main(int argc, char **argv) {
 	int nSensors = 40;
 	int nUAV = 3;
 	int time_N = 3600;
-	int timeSlot = 1;
+	double timeSlot = 1;
 	Simulator::Simu_type st = Simulator::SIMU_NORMAL;
 
 	// (constant k at predefined %) k = (ln(1/%))/x       (used 0.1%)
@@ -201,6 +201,7 @@ int main(int argc, char **argv) {
 
 	//WakeUp
 	double wakeupPower = 0.5;			// Watt -> trasmissione dell'illuminatore	//27dBm
+	double wakeupMinPower = 0.000005;	// Watt -> min ricezione al sensore	//27dBm
 	double wakeupFreq = 868;			// MHz
 	double gainTx = 8.6;				// dBi (ex Yagi https://www.team-blacksheep.com/products/prod:868_yagi)
 	double gainRx = 1;					// dBi
@@ -216,6 +217,10 @@ int main(int argc, char **argv) {
 	double pu_sup = 0;					// Watt -> p^U_{startup}
 	double pu_tx = 0;					// Watt -> p^U_{tx}
 	double pu_rx = 0;					// Watt -> p^U_{rx}
+	double gUmax = 8;					// dBi -> g^U_{max}
+	double aUmax = M_PI_4;				// rad -> a^U_{max}
+	double gSmax = 1;					// dBi -> g^S_{max}
+	double aSmax = M_PI;				// rad -> a^S_{max}
 
 	//Statistics
 	int timeslots2log = 30;
@@ -271,6 +276,7 @@ int main(int argc, char **argv) {
 	const std::string &sensor_full_random = input.getCmdOption("-sFR");
 
 	const std::string &wakeup_tx_power = input.getCmdOption("-wuPTx");
+	const std::string &wakeup_tx_minpower = input.getCmdOption("-wumPTx");
 	const std::string &wakeup_tx_freq = input.getCmdOption("-wuFreq");
 	const std::string &energy_to_wakeup = input.getCmdOption("-e2wu");
 	const std::string &gain_antenna_tx = input.getCmdOption("-gTx");
@@ -287,6 +293,11 @@ int main(int argc, char **argv) {
 	const std::string &multiflow_pU_startup = input.getCmdOption("-mfpUstartup");
 	const std::string &multiflow_pU_tx = input.getCmdOption("-mfpUtx");
 	const std::string &multiflow_pU_rx = input.getCmdOption("-mfpUrx");
+
+	const std::string &multiflow_gU_max = input.getCmdOption("-mfgUmax");
+	const std::string &multiflow_aU_max = input.getCmdOption("-mfaUmax");
+	const std::string &multiflow_gS_max = input.getCmdOption("-mfgSmax");
+	const std::string &multiflow_aS_max = input.getCmdOption("-mfaSmax");
 
 	if (!seedUser.empty()) {
 		int seedR = atoi(seedUser.c_str());
@@ -310,7 +321,7 @@ int main(int argc, char **argv) {
 		time_N = atoi(inputTimeSim.c_str());
 	}
 	if (!timeSlot_string.empty()) {
-		timeSlot = atoi(timeSlot_string.c_str());
+		timeSlot = atof(timeSlot_string.c_str());
 	}
 	if (!stat2log_string.empty()) {
 		timeslots2log = atoi(stat2log_string.c_str());
@@ -357,6 +368,9 @@ int main(int argc, char **argv) {
 	}
 	if (!wakeup_tx_power.empty()) {
 		wakeupPower = atof(wakeup_tx_power.c_str());
+	}
+	if (!wakeup_tx_minpower.empty()) {
+		wakeupMinPower = atof(wakeup_tx_minpower.c_str());
 	}
 	if (!wakeup_tx_freq.empty()) {
 		wakeupFreq = atof(wakeup_tx_freq.c_str());
@@ -430,10 +444,23 @@ int main(int argc, char **argv) {
 		pu_rx = atof(multiflow_pU_rx.c_str());
 	}
 
+	if (!multiflow_gU_max.empty()) {
+		gUmax = atof(multiflow_gU_max.c_str());
+	}
+	if (!multiflow_aU_max.empty()) {
+		aUmax = atof(multiflow_aU_max.c_str());
+	}
+	if (!multiflow_gS_max.empty()) {
+		gSmax = atof(multiflow_gS_max.c_str());
+	}
+	if (!multiflow_aS_max.empty()) {
+		aSmax = atof(multiflow_aS_max.c_str());
+	}
+
 	Generic::getInstance().init(timeSlot);
 	Generic::getInstance().setSensorParam(initEnergySensor, sensorSelfDischarge, eON, eBOOT, fullRandomSensors);
 	Generic::getInstance().setUAVParam(initEnergyUAV, flightAltitude, maxVelocity, motorPower, rechargePower, time2read, energy2read);
-	Generic::getInstance().setWakeUpParam(wakeupPower, wakeupFreq, energy2wakeup, gainTx, gainRx);
+	Generic::getInstance().setWakeUpParam(wakeupPower, wakeupMinPower, wakeupFreq, energy2wakeup, gainTx, gainRx, gUmax, aUmax, gSmax, aSmax);
 	Generic::getInstance().setStatParam(makeStateDuringSim, statFile, hitmapFile);
 	Generic::getInstance().setMultiFlowParam(tsup, ttout, numr, ps_sup, ps_tx, ps_rx, pu_sup, pu_tx, pu_rx, 4*motorPower);
 	Loss::getInstance().init(kd, kt, ke, md, mt, me, useSigmoid, a);

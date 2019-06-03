@@ -191,6 +191,9 @@ int main(int argc, char **argv) {
 	double maxVelocity = 12;			// m/s
 	double time2read = 1;				// seconds
 	double energy2read = 0.0005;		// Joule
+	double varGPS = 2;					// meter -> sigma^2 of the GPS error
+	double varPilot = 1;				// meter -> sigma^2 of the Pilot error
+	double varRot = 0.2;				// rad -> sigma^2 of the pilot-angle error
 
 	//Sensor parameters
 	double initEnergySensor = 3996;		// Joule -> 300mAh * 3.7Volt * 3.6
@@ -205,7 +208,7 @@ int main(int argc, char **argv) {
 	double wakeupFreq = 868;			// MHz
 	double gainTx = 8.6;				// dBi (ex Yagi https://www.team-blacksheep.com/products/prod:868_yagi)
 	double gainRx = 1;					// dBi
-	double energy2wakeup = 0.00001;		// Joule
+	double energy2wakeup = 0.01;		// micro-Joule
 
 	//MultiFlow
 	int tsup = 20;						// time-slots -> t_{startup}
@@ -268,6 +271,9 @@ int main(int argc, char **argv) {
 	const std::string &maxVel = input.getCmdOption("-mVel");
 	const std::string &uavTime2Read = input.getCmdOption("-uT2R");
 	const std::string &uavEnergy2Read = input.getCmdOption("-uE2R");
+	const std::string &uavVarGPS = input.getCmdOption("-uVarGps");
+	const std::string &uavVarPilot = input.getCmdOption("-uVarPil");
+	const std::string &uavVarRot = input.getCmdOption("-uVarRot");
 
 	const std::string &energy_sensor = input.getCmdOption("-ieSens");
 	const std::string &energy_eon = input.getCmdOption("-eON");
@@ -278,7 +284,7 @@ int main(int argc, char **argv) {
 	const std::string &wakeup_tx_power = input.getCmdOption("-wuPTx");
 	const std::string &wakeup_tx_minpower = input.getCmdOption("-wumPTx");
 	const std::string &wakeup_tx_freq = input.getCmdOption("-wuFreq");
-	const std::string &energy_to_wakeup = input.getCmdOption("-e2wu");
+	const std::string &energy_to_wakeup = input.getCmdOption("-e2wu_uJ");
 	const std::string &gain_antenna_tx = input.getCmdOption("-gTx");
 	const std::string &gain_antenna_rx = input.getCmdOption("-gRx");
 
@@ -376,7 +382,7 @@ int main(int argc, char **argv) {
 		wakeupFreq = atof(wakeup_tx_freq.c_str());
 	}
 	if (!energy_to_wakeup.empty()) {
-		energy2wakeup = atof(energy_to_wakeup.c_str());
+		energy2wakeup = atof(energy_to_wakeup.c_str()) / 1000000.0;
 	}
 	if (!gain_antenna_tx.empty()) {
 		gainTx = atof(gain_antenna_tx.c_str());
@@ -456,10 +462,19 @@ int main(int argc, char **argv) {
 	if (!multiflow_aS_max.empty()) {
 		aSmax = atof(multiflow_aS_max.c_str());
 	}
+	if (!uavVarGPS.empty()) {
+		varGPS = atof(uavVarGPS.c_str());
+	}
+	if (!uavVarPilot.empty()) {
+		varPilot = atof(uavVarPilot.c_str());
+	}
+	if (!uavVarRot.empty()) {
+		varRot = atof(uavVarRot.c_str());
+	}
 
 	Generic::getInstance().init(timeSlot);
 	Generic::getInstance().setSensorParam(initEnergySensor, sensorSelfDischarge, eON, eBOOT, fullRandomSensors);
-	Generic::getInstance().setUAVParam(initEnergyUAV, flightAltitude, maxVelocity, motorPower, rechargePower, time2read, energy2read);
+	Generic::getInstance().setUAVParam(initEnergyUAV, flightAltitude, maxVelocity, motorPower, rechargePower, time2read, energy2read, varGPS, varPilot, varRot);
 	Generic::getInstance().setWakeUpParam(wakeupPower, wakeupMinPower, wakeupFreq, energy2wakeup, gainTx, gainRx, gUmax, aUmax, gSmax, aSmax);
 	Generic::getInstance().setStatParam(makeStateDuringSim, statFile, hitmapFile);
 	Generic::getInstance().setMultiFlowParam(tsup, ttout, numr, ps_sup, ps_tx, ps_rx, pu_sup, pu_tx, pu_rx, 4*motorPower);

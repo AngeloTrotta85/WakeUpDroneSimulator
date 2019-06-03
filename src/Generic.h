@@ -58,7 +58,9 @@ public:
 			sensorSelfDischargePerSlot = 0;
 		}
 	}
-	void setUAVParam(double initEnergyUAV, double flightAltitude, double maxVel, double motorPower, double rechargePower, double time2read, double energy2read) {
+	void setUAVParam(double initEnergyUAV, double flightAltitude, double maxVel, double motorPower,
+			double rechargePower, double time2read, double energy2read,
+			double sGPS, double sPilot, double sRot) {
 		initUAVEnergy = initEnergyUAV;
 		flightAltitudeUAV = flightAltitude;
 		maxVelocity = maxVel;
@@ -66,6 +68,9 @@ public:
 		rechargeStation_power = rechargePower;
 		uavTime2Read = time2read;
 		uavEnergy2Read = energy2read;
+		sigmaGPS = sGPS;
+		sigmaPilot = sPilot;
+		sigmaRot = sRot;
 	}
 	void setWakeUpParam(double wakeupPower, double wakeupMinPower, double wakeupFrequency, double energy2wakeup, double gTx, double gRx,
 			double gUm, double aUm, double gSm, double aSm) {
@@ -148,6 +153,9 @@ public:
 	double alphaUmax;
 	double gSmax;
 	double alphaSmax;
+	double sigmaGPS;
+	double sigmaPilot;
+	double sigmaRot;
 };
 
 #endif /* GENERIC_H_ */

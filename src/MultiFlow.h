@@ -46,9 +46,10 @@ public:
 	void addChargStationAndUAV(MyCoord c, UAV *u);
 
 	void run(int end_time);
+	void init(void);
 
-	double getPDF_Eloc(MyCoord e);
-	double getPDF_Erot(MyCoord r);
+	//double getPDF_Eloc(MyCoord e);
+	//double getPDF_Erot(MyCoord r);
 
 	double getPDF_Eloc_single(double e);
 	double getPDF_Erot_single(double r);
@@ -68,15 +69,19 @@ public:
 	double energy_loss_onArc(int tstart);
 
 public:
+	void initEfficiencyMap(void);
 	double calc_Beta(double d3D, double h, double d2D);
-	double calc_smallGamma(double d3D, double h, double rho_x, double rho_y);
+	double calc_smallGamma(double x, double y, double d3D, double h, double rho_x, double rho_y);
 	double calc_Gain(double alpha, double gMAX, double alphaMAX);
 	double calc_PathLoss(double d3D, double fMHz);
 	double calc_Gamma(double x, double y, double rho_x, double rho_y);
+	double calcRF2DC_efficiency(double rcvPow);
 
 private:
 	map<int, ChargingNode *> cs_map;
 	list<SensorNode *> sens_list;
+
+	map<int, double> efficiencyMap;
 
 	int actSensorTimeStamp;
 	int actUAVTimeStamp;

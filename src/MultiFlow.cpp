@@ -98,7 +98,7 @@ int MultiFlow::updateSensorsEnergy(int starttime, int endtime) {
 void MultiFlow::calculateTSP(ChargingNode *leftmost) {
 
 }
-
+/*
 double MultiFlow::getPDF_Eloc(MyCoord e) {
 	double meanGPS = 0;
 	double sigmaGPS = 2;
@@ -113,20 +113,20 @@ double MultiFlow::getPDF_Erot(MyCoord r) {
 	double sigma = 0.3;
 
 	return RandomGenerator::get_PDF_normal(r.x, mean, sigma) * RandomGenerator::get_PDF_normal(r.y, mean, sigma);
-}
+}*/
 
 double MultiFlow::getPDF_Eloc_single(double e) {
 	double meanGPS = 0;
-	double sigmaGPS = 2;
+	double sigmaGPS = Generic::getInstance().sigmaGPS;
 	double meanPilot = 0;
-	double sigmaPilot = 1;
+	double sigmaPilot = Generic::getInstance().sigmaPilot;
 
 	return RandomGenerator::get_PDF_normal(e, meanGPS + meanPilot, sigmaGPS + sigmaPilot);
 }
 
 double MultiFlow::getPDF_Erot_single(double r) {
 	double mean = 0;
-	double sigma = 0.3;
+	double sigma = Generic::getInstance().sigmaRot;
 
 	return RandomGenerator::get_PDF_normal(r, mean, sigma);
 }
@@ -134,9 +134,10 @@ double MultiFlow::getPDF_Erot_single(double r) {
 double MultiFlow::calc_d2D_max(double h, double alpha_max) {
 	double angle_h = M_PI_2 - (alpha_max / 2.0);
 	double ris_sens = ((h/sin(angle_h)) * sin(alpha_max / 2.0));
+	double ptx_dbm = 10.0 * log10(1000.0 * Generic::getInstance().wakeupTxPower);
 
 	double d3D_max = pow(10.0,
-			(Generic::getInstance().wakeupTxPower + Generic::getInstance().gUmax + Generic::getInstance().gSmax +
+			(ptx_dbm + Generic::getInstance().gUmax + Generic::getInstance().gSmax +
 					(20.0*log10(Generic::getInstance().wakeupTxFrequency) -27.55) - Generic::getInstance().wakeupTxMinPower)/20.0);
 	double ris_uav = sqrt(pow(d3D_max, 2.0) - pow(h, 2.0));
 
@@ -149,26 +150,30 @@ double MultiFlow::calc_d2D_max(double h, double alpha_max) {
 
 double MultiFlow::calcProb_EReceived_new(double h, double e) {
 	double ris = 0;
+	double distDiv = 50.0;
+	double rotDiv = 20.0;
 
 	double d2Dmax = calc_d2D_max(h, Generic::getInstance().alphaSmax);
-	double deltad = d2Dmax/50.0;
+	double deltad = d2Dmax/distDiv;
 
-	if (e == 0) {
-		double rmax = M_PI_2;
-		double deltar = rmax/20.0;
-		double sumAll = 0;
+	double rmax = M_PI / 3.0;
+	double deltar = rmax/rotDiv;
 
-		for (double x = -d2Dmax; x <= (d2Dmax + 0.001); x+=deltad) {
-			for (double y = -d2Dmax; y <= (d2Dmax + 0.001); y+=deltad) {
-				if (MyCoord(x, y).length() <= d2Dmax) {
-					for (double rx = -rmax; rx <= (rmax + 0.001); rx+=deltar) {
-						for (double ry = -rmax; ry <= (rmax + 0.001); ry+=deltar) {
-							//cout << "Calculating gamma with -> x: " << x << "; y: " << y << "; rx: " << rx << "; ry: " << ry  << endl;
-							double g = calc_Gamma(x, y, rx, ry);
-							//cout << "deltad: " << deltad << " deltar:" << deltar <<
-							//		" -> gamma: " << g << "; e: " << e << endl << endl;
+	double sumAll = 0;
 
-							if (g == 0) {
+	for (double x = -d2Dmax; x <= (d2Dmax + 0.001); x+=deltad) {
+		for (double y = -d2Dmax; y <= (d2Dmax + 0.001); y+=deltad) {
+			if (MyCoord(x, y).length() <= d2Dmax) {
+				for (double rx = -rmax; rx <= (rmax + 0.001); rx+=deltar) {
+					for (double ry = -rmax; ry <= (rmax + 0.001); ry+=deltar) {
+						//cout << "Calculating gamma with -> x: " << x << "; y: " << y << "; rx: " << rx << "; ry: " << ry  << endl;
+						double g = calc_Gamma(x, y, rx, ry);
+						//cout << "deltad: " << deltad << " deltar:" << deltar <<
+						//		" -> gamma: " << g << "; e: " << e << endl << endl;
+
+						if (e == 0) {
+							//cout << "E = 0" << endl;
+							if (g == e) {
 								double actProb = getPDF_Eloc_single(x) * getPDF_Eloc_single(y) * getPDF_Erot_single(rx) * getPDF_Erot_single(ry);
 								//cout << "Calculating gamma with -> x: " << x << "; y: " << y << "; rx: " << rx << "; ry: " << ry;
 								//cout << " -> gamma: " << g << "; e: " << e;
@@ -176,23 +181,40 @@ double MultiFlow::calcProb_EReceived_new(double h, double e) {
 								sumAll += actProb;
 							}
 						}
+						else {
+							/*if (g > 0) {
+								cout << "Calculated gamma with -> x: " << x << "; y: " << y << "; rx: " << rx << "; ry: " << ry;
+								cout << " - deltad: " << deltad << " deltar:" << deltar <<
+										" -> gamma: " << g << "; e: " << e << endl;
+							}*/
+							double closeoffset = e / 50.0;//1.0e-9 * Generic::getInstance().timeSlot;
+							if (MyCoord::close(g, e, closeoffset)) {
+
+								cout << "Calculating gamma with -> x: " << x << "; y: " << y << "; rx: " << rx << "; ry: " << ry;
+								cout << " - deltad: " << deltad << " deltar:" << deltar <<
+										" -> gamma: " << g << "; e: " << e << endl;
+
+								cout << "they are close!!!" << endl;
+								double actProb = getPDF_Eloc_single(x) * getPDF_Eloc_single(y) * getPDF_Erot_single(rx) * getPDF_Erot_single(ry);
+								cout << "Calculating gamma --> totProb = " << actProb << endl;
+								sumAll += actProb;
+							}
+						}
 					}
 				}
 			}
 		}
+	}
 
-		/*cout << "Sum all Prob = " << sumAll << " using"
+	cout << "Sum all Prob = " << sumAll << " using"
 				<< " d2Dmax: " << d2Dmax << " rmax:" << rmax
 				<< " deltad: " << deltad << " deltar:" << deltar
-				<< " --> ris = " << (deltad * deltad * deltar * deltar * sumAll) << endl;*/
+				<< " --> ris = " << (deltad * deltad * deltar * deltar * sumAll) << endl;
 
-		//if (e == 0) exit(0);
+	//if (e == 0)
+	exit(0);
 
-		ris = deltad * deltad * deltar * deltar * sumAll;
-	}
-	else {
-
-	}
+	ris = deltad * deltad * deltar * deltar * sumAll;
 
 	return ris;
 }
@@ -309,7 +331,8 @@ void MultiFlow::calcProb_EReceivedTime_rec(double &acc, std::vector<double> &vec
 	for (auto& ei : vect){
 		sume += ei;
 	}
-	if (MyCoord::close(sume, e)) {
+	//if (MyCoord::close(sume, e)) {
+	if (sume == e) {
 		cout << "vect -> [";
 		for(auto& val : vect)
 			cout << val << " ";
@@ -317,7 +340,7 @@ void MultiFlow::calcProb_EReceivedTime_rec(double &acc, std::vector<double> &vec
 
 		double product = 1.0;
 		for (int j = 0; j < t; j++) {
-			double pEReceived = calcProb_EReceived(h, vect[j]);
+			double pEReceived = calcProb_EReceived_new(h, vect[j]);
 			cout << " " << pEReceived << " *";
 			product *= pEReceived;
 		}
@@ -359,11 +382,11 @@ double MultiFlow::calcProb_EReceivedTime(double e, double deltae, double h, int 
 
 double MultiFlow::calculate_pWU(double h, int twu) {
 	double pwu = 1;
-	double ewu = 20;
-	double deltae = 5;
+	double ewu = Generic::getInstance().energyToWakeUp;
+	double deltae = ewu / 20.0;
 
 	double sumprob = 0;
-	for (double e = 0; e <= ((ewu/deltae) - 1); e+= 1) {
+	for (double e = 1; e <= ((ewu/deltae) - 1); e+= 1) {	//TODO start from 0
 		double actVal = calcProb_EReceivedTime(e * deltae, deltae, h, twu);
 		cout << "Prob_EReceivedTime = " << actVal << endl << endl;
 		sumprob += actVal;
@@ -377,38 +400,15 @@ double MultiFlow::calc_Beta(double d3D, double h, double d2D) {
 	return acos( (pow(d3D, 2.0) + pow(h, 2.0) - pow(d2D, 2.0)) / (2.0 * d3D * h) );
 }
 
-double MultiFlow::calc_smallGamma(double d3D, double h, double rho_x, double rho_y) {
-	double h_rho, d2D_rho;
+double MultiFlow::calc_smallGamma(double x, double y, double d3D, double h, double rho_x, double rho_y) {
+	MyCoord uav(x, y, h);
+	MyCoord sens(0, 0);
+	MyCoord rho(x + h*tan(rho_y), y + h*tan(rho_x));
 
-	//cout << "Calculating smallgamma -> d3D: " << d3D << "; h: " << h << "; rho_x: " << rho_x << "; rho_y: " << rho_y << endl;
+	double d_rho_2D = rho.distance(sens);
+	double h_rho = rho.distance(uav);
 
-	//double d_rho_y = (h * sin(rho_y)) / sin(M_PI_2 - rho_y);
-	//double d_rho_x = (h * sin(rho_x)) / sin(M_PI_2 - rho_x);
-
-	double d_rho_y = h * tan(rho_y);
-	double d_rho_x = h * tan(rho_x);
-
-	//cout << "d_rho_y: " << d_rho_y << "; d_rho_x: " << d_rho_x << endl;
-	//cout << "d_rho_y_tan: " << d_rho_y_tan << "; d_rho_x_tan: " << d_rho_x_tan << endl;
-
-	double h_rho_y = sqrt( pow(h, 2.0) + pow(d_rho_y, 2.0) );
-	double h_rho_x = sqrt( pow(h, 2.0) + pow(d_rho_x, 2.0) );
-
-	double h_rho_1 = sqrt( pow(h_rho_x, 2.0) + pow(d_rho_y, 2.0) );
-	double h_rho_2 = sqrt( pow(h_rho_y, 2.0) + pow(d_rho_x, 2.0) );
-
-	if (MyCoord::close(h_rho_1, h_rho_2)) {
-		h_rho = h_rho_1;
-	}
-	else {
-		h_rho = 1;
-		cerr << "Wrong smallGamm calculation. " << h_rho_1 << " != " << h_rho_2 << endl;
-		exit(EXIT_FAILURE);
-	}
-
-	d2D_rho = sqrt( pow(d3D, 2.0) - pow(h_rho, 2.0) );
-
-	return acos( (pow(d3D, 2.0) + pow(h_rho, 2.0) - pow(d2D_rho, 2.0)) / (2.0 * d3D * h_rho) );
+	return acos((pow(h_rho, 2.0) + pow(d3D, 2.0) - pow(d_rho_2D, 2.0))/(2.0 * h_rho * d3D));
 }
 
 double MultiFlow::calc_Gain(double alpha, double gMAX, double alphaMAX) {
@@ -425,6 +425,63 @@ double MultiFlow::calc_PathLoss(double d3D, double fMHz){
 	return ((20.0 * log10(d3D)) + (20.0 * log10(fMHz)) - 27.55);
 }
 
+void MultiFlow::initEfficiencyMap(void) {
+	efficiencyMap[-19] = 0;
+	efficiencyMap[-18] = 0.005;
+	efficiencyMap[-17] = 0.075;
+	efficiencyMap[-16] = 0.15;
+	efficiencyMap[-15] = 0.22;
+	efficiencyMap[-14] = 0.28;
+	efficiencyMap[-13] = 0.34;
+	efficiencyMap[-12] = 0.385;
+	efficiencyMap[-11] = 0.42;
+	efficiencyMap[-10] = 0.44;
+	efficiencyMap[-9] = 0.445;
+	efficiencyMap[-8] = 0.442;
+	efficiencyMap[-7] = 0.43;
+	efficiencyMap[-6] = 0.415;
+	efficiencyMap[-5] = 0.395;
+	efficiencyMap[-4] = 0.37;
+	efficiencyMap[-3] = 0.345;
+	efficiencyMap[-2] = 0.315;
+	efficiencyMap[-1] = 0.29;
+	efficiencyMap[0] = 0.27;
+	efficiencyMap[1] = 0.25;
+	efficiencyMap[2] = 0.23;
+	efficiencyMap[3] = 0.208;
+	efficiencyMap[4] = 0.19;
+	efficiencyMap[5] = 0.173;
+	efficiencyMap[6] = 0.15;
+	efficiencyMap[7] = 0.125;
+	efficiencyMap[8] = 0.105;
+	efficiencyMap[9] = 0.09;
+	efficiencyMap[10] = 0.072;
+	efficiencyMap[11] = 0.06;
+	efficiencyMap[12] = 0.05;
+	efficiencyMap[13] = 0.041;
+	efficiencyMap[14] = 0.036;
+	efficiencyMap[15] = 0.028;
+	efficiencyMap[16] = 0.024;
+	efficiencyMap[17] = 0.02;
+	efficiencyMap[18] = 0.018;
+	efficiencyMap[19] = 0;
+}
+
+double MultiFlow::calcRF2DC_efficiency(double rcvPow_dbm) {
+	double eff_floor = 0;
+	double eff_ceil = 0;
+	int rcvPow_floor = floor(rcvPow_dbm);
+	int rcvPow_ceil = ceil(rcvPow_dbm);
+
+	if ((rcvPow_dbm >= -19) && (rcvPow_dbm <= 19)) {
+		eff_floor = efficiencyMap[rcvPow_floor];
+		eff_ceil = efficiencyMap[rcvPow_ceil];
+	}
+
+	//return ((1-(J5-FLOOR(J5)))*L5)+(((J5-FLOOR(J5)))*M5);
+	return ( ( (1.0-(rcvPow_dbm-rcvPow_floor))*eff_floor ) + ( ((rcvPow_dbm-rcvPow_floor))*eff_ceil ) );
+}
+
 double MultiFlow::calc_Gamma(double x, double y, double rho_x, double rho_y) {
 	double ris = 0;
 
@@ -436,8 +493,7 @@ double MultiFlow::calc_Gamma(double x, double y, double rho_x, double rho_y) {
 	beta = calc_Beta(d3D, Generic::getInstance().flightAltitudeUAV, MyCoord(x, y).length());
 	//cout << "beta -> " << beta << endl;
 
-	HO GIà X e Y
-	gamma = calc_smallGamma(d3D, Generic::getInstance().flightAltitudeUAV, rho_x, rho_y);
+	gamma = calc_smallGamma(x, y, d3D, Generic::getInstance().flightAltitudeUAV, rho_x, rho_y);
 	//cout << "gamma -> " << gamma << endl;
 
 	//cout << "wakeupTxPower -> " << Generic::getInstance().wakeupTxPower << endl;
@@ -445,15 +501,20 @@ double MultiFlow::calc_Gamma(double x, double y, double rho_x, double rho_y) {
 	//cout << "gainS -> " << calc_Gain(beta, Generic::getInstance().gSmax, Generic::getInstance().alphaSmax) << endl;
 	//cout << "PL -> " << calc_PathLoss(d3D, Generic::getInstance().wakeupTxFrequency) << endl;
 
-	ris += Generic::getInstance().wakeupTxPower;
+	ris += 10.0 * log10(Generic::getInstance().wakeupTxPower);
 	ris += calc_Gain(gamma, Generic::getInstance().gUmax, Generic::getInstance().alphaUmax);
 	ris += calc_Gain(beta, Generic::getInstance().gSmax, Generic::getInstance().alphaSmax);
 	ris -= calc_PathLoss(d3D, Generic::getInstance().wakeupTxFrequency);
 
 	double ris_W = pow(10.0, ris / 10.0) / 1000.0;
-	double ris_J = ris_W * Generic::getInstance().timeSlot;
+	double ris_store = ris_W * calcRF2DC_efficiency(ris_W);
+	double ris_J = ris_store * Generic::getInstance().timeSlot;
 
 	return ris_J;
+}
+
+void MultiFlow::init(void) {
+	initEfficiencyMap();
 }
 
 void MultiFlow::run(int end_time) {

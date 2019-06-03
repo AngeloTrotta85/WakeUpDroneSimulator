@@ -45,7 +45,13 @@ public:
         double getRealNormal (double mean, double stdev);
 
         static double get_PDF_normal(double x, double mu, double sigma2) {
-        	return (1.0 / sqrt(2.0 * M_PI * sigma2)) * exp(-(pow(x - mu, 2.0)/(2.0 * sigma2)));
+        	if (sigma2 == 0){
+        		if (x == mu) return 1;
+        		else return 0;
+        	}
+        	else {
+        		return (1.0 / sqrt(2.0 * M_PI * sigma2)) * exp(-(pow(x - mu, 2.0)/(2.0 * sigma2)));
+        	}
         	//return ((1.0 / (sqrt(2.0 * M_PI * sigma2))) * exp());
         }
 

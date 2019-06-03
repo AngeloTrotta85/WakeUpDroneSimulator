@@ -587,6 +587,7 @@ void Simulator::run_multiflow(std::vector<CoordCluster *> &clustVec, std::list<S
 	}
 
 	MultiFlow mf;
+	mf.init();
 
 	for (auto& cv : clustVec) {
 		mf.addChargStationAndUAV(*(cv->clusterHead), cv->clusterUAV);

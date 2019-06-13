@@ -8,6 +8,7 @@
 #include "MultiFlow.h"
 #include "Generic.h"
 #include "RandomGenerator.h"
+#include "Loss.h"
 
 MultiFlow::MultiFlow() {
 	actSensorTimeStamp = 0;
@@ -95,9 +96,129 @@ int MultiFlow::updateSensorsEnergy(int starttime, int endtime) {
 	return endtime;
 }
 
-void MultiFlow::calculateTSP(ChargingNode *leftmost) {
+void MultiFlow::activateTSPandRecharge(ChargingNode *cnode, list<SensorNode *> &tsp) {
+	int actTime = cnode->lastTimestamp;
+	MyCoord uav_pos = cnode->pos;
+	double uav_energy = cnode->u->max_energy;
 
+	for (auto& s : tsp) {
+		// calculate time to travel
+		double ttt = s->sens->coord.distance(uav_pos) / Generic::getInstance().maxVelocity;
+		uav_energy -= ttt * Generic::getInstance().pUfly;
+		actTime += ((int) (ceil(ttt / Generic::getInstance().timeSlot)));
+
+		//move the UAV
+		uav_pos = s->sens->coord;
+
+		//calculate time to wake-up and gather the data
+		double ttwu = Generic::getInstance().tstartup + (Generic::getInstance().ttimeout * Generic::getInstance().nr);
+		double pWU = 1; //TODO
+		uav_energy -= 	(ttwu * Generic::getInstance().timeSlot * Generic::getInstance().pUfly)
+						+ ( pWU * ( (	Generic::getInstance().pUstartup * Generic::getInstance().timeSlot * Generic::getInstance().tstartup ) +
+								(Generic::getInstance().timeSlot * Generic::getInstance().ttimeout * Generic::getInstance().nr *
+										(Generic::getInstance().pUrx + ((Generic::getInstance().pUtx - Generic::getInstance().pUrx) / Generic::getInstance().ttimeout)) ) ) );
+		actTime += ttwu;
+
+		//set the reading on the sensor
+		double pREAD = 1; //TODO
+		if (RandomGenerator::getInstance().getRealUniform(0, 1) <= pREAD) {
+			SensorNode::SensorRead sr;
+			sr.readTime = actTime;
+			sr.uav = cnode->u;
+			s->readings.push_back(sr);
+		}
+
+		if (actTime > s->lastTimestamp) {
+			s->lastTimestamp = actTime;		// a cosa serve s->lastTimestamp?
+		}
+	}
+
+	if (uav_pos != cnode->pos) {
+		// calculate time to travel
+		double ttt = cnode->pos.distance(uav_pos) / Generic::getInstance().maxVelocity;
+		uav_energy -= ttt * Generic::getInstance().pUfly;
+		actTime += ((int) (ceil(ttt / Generic::getInstance().timeSlot)));
+	}
+
+	// calculate time to recharge
+	double e2recharge = cnode->u->max_energy - max(uav_energy, 0.0);
+	actTime += ((int) (ceil(e2recharge / Generic::getInstance().rechargeStation_power)));
+
+	cnode->lastTimestamp = actTime;
 }
+
+double MultiFlow::calcLossSensor(SensorNode *s_check, std::list<SensorNode *> &sList, int texp) {
+	double ris = 0;
+
+	for (auto& s : sens_list) {
+		for (auto& r : s->readings) {
+			if (r.readTime < texp) {
+				double actLoss = Loss::getInstance().calculate_loss_distance(s->sens, s_check->sens)
+						+ Loss::getInstance().calculate_loss_time(r.readTime, texp);
+
+				if (actLoss > ris) {
+					ris = actLoss;
+				}
+			}
+		}
+	}
+
+	return ris;
+}
+
+SensorNode *MultiFlow::getMinLossSensor(list<SensorNode *> &sList, int texp) {
+	SensorNode *ris = nullptr;
+	double minLoss = std::numeric_limits<double>::max();
+
+	for (auto& s : sens_list) {
+		double actLoss = calcLossSensor(s, sList, texp);
+		if (actLoss < minLoss) {
+			minLoss = actLoss;
+			ris = s;
+		}
+	}
+
+	return ris;
+}
+
+void MultiFlow::calculateTSP_incremental(list<SensorNode *> &newTSP, list<SensorNode *> &actTSP,
+		SensorNode *sj, ChargingNode *cnode, double &tsp_time, double &tsp_cost) {
+	//TODO
+}
+
+void MultiFlow::calculateTSP_and_UpdateMF(ChargingNode *leftmost) {
+	int tk = leftmost->lastTimestamp;
+	double tsp_time = 0;
+	list<SensorNode *> sens_check;
+	list<SensorNode *> actTSP;
+
+	for (auto& s : sens_list) {
+		sens_check.push_back(s);
+	}
+
+	while (!sens_check.empty()) {
+		list<SensorNode *> newTSP;
+		double t_cost = std::numeric_limits<double>::max();
+		double t_time_tmp = 0;
+
+		double t_exp = tk + (tsp_time / 2.0);
+		SensorNode *sj = getMinLossSensor(sens_check, t_exp);
+		calculateTSP_incremental(newTSP, actTSP, sj, leftmost, t_time_tmp, t_cost);
+
+		if (t_cost <= Generic::getInstance().initUAVEnergy) {
+			actTSP.clear();
+			for (auto& s : newTSP) {
+				actTSP.push_back(s);
+			}
+			tsp_time = t_time_tmp;
+		}
+
+		sens_check.remove(sj);
+	}
+
+	activateTSPandRecharge(leftmost, actTSP);
+}
+
 /*
 double MultiFlow::getPDF_Eloc(MyCoord e) {
 	double meanGPS = 0;
@@ -380,20 +501,23 @@ double MultiFlow::calcProb_EReceivedTime(double e, double deltae, double h, int 
 	return ris;
 }
 
-double MultiFlow::calculate_pWU(double h, int twu) {
-	double pwu = 1;
+double MultiFlow::calculate_pWU(double h, int twu, double sigma2loc, double sigma2rho) {
+	/*double pwu = 1;
 	double ewu = Generic::getInstance().energyToWakeUp;
 	double deltae = ewu / 20.0;
 
 	double sumprob = 0;
-	for (double e = 1; e <= ((ewu/deltae) - 1); e+= 1) {	//TODO start from 0
+	for (double e = 0; e <= ((ewu/deltae) - 1); e+= 1) {
 		double actVal = calcProb_EReceivedTime(e * deltae, deltae, h, twu);
 		cout << "Prob_EReceivedTime = " << actVal << endl << endl;
 		sumprob += actVal;
 	}
 	pwu = 1.0 - (deltae * sumprob);
 
-	return pwu;
+	return pwu;*/
+
+	//TODO read from file
+	return 1;
 }
 
 double MultiFlow::calc_Beta(double d3D, double h, double d2D) {
@@ -524,9 +648,9 @@ void MultiFlow::run(int end_time) {
 	}
 	exit(EXIT_FAILURE);*/
 
-	pWU = calculate_pWU(Generic::getInstance().flightAltitudeUAV, 4);
+	pWU = calculate_pWU(Generic::getInstance().flightAltitudeUAV, 4,
+			Generic::getInstance().sigmaGPS + Generic::getInstance().sigmaPilot, Generic::getInstance().sigmaRot);
 	cerr << "fine pWU: " << pWU << endl;
-	exit(EXIT_FAILURE);
 
 	ChargingNode *leftmost = cs_map.begin()->second;
 	while(actSensorTimeStamp < end_time){
@@ -534,7 +658,7 @@ void MultiFlow::run(int end_time) {
 			actSensorTimeStamp = updateSensorsEnergy(actSensorTimeStamp, actUAVTimeStamp);
 		}
 
-		calculateTSP(leftmost);
+		calculateTSP_and_UpdateMF(leftmost);
 
 		leftmost = getLeftMostUAV(end_time);
 		if (leftmost == nullptr) {
@@ -545,7 +669,12 @@ void MultiFlow::run(int end_time) {
 			break;
 		}
 		else {
+			double lastTS = actUAVTimeStamp;
 			actUAVTimeStamp = leftmost->lastTimestamp;
+			if (actUAVTimeStamp == lastTS) {
+				cerr << "ERROR incrementing time stamp" << endl;
+				exit(EXIT_FAILURE);
+			}
 		}
 	}
 }

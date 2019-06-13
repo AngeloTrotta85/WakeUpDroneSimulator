@@ -59,11 +59,17 @@ public:
 	double calcProb_EReceived(double h, double e);
 	void calcProb_EReceivedTime_rec(double &acc, std::vector<double> &vect, double h, int t, double e, double deltae);
 	double calcProb_EReceivedTime(double e, double deltae, double h, int t);
-	double calculate_pWU(double h, int twu);
+	double calculate_pWU(double h, int twu, double sigma2loc, double sigma2rho);
 
 	ChargingNode *getLeftMostUAV(int end_time);
 	int updateSensorsEnergy(int starttime, int endtime);
-	void calculateTSP(ChargingNode *leftmost);
+
+	void activateTSPandRecharge(ChargingNode *cnode, list<SensorNode *> &tsp);
+	double calcLossSensor(SensorNode *s_check, list<SensorNode *> &sList, int texp);
+	SensorNode *getMinLossSensor(list<SensorNode *> &sList, int texp);
+	void calculateTSP_incremental(list<SensorNode *> &newTSP, list<SensorNode *> &actTSP,
+			SensorNode *sj, ChargingNode *cnode, double &tsp_time, double &tsp_cost);
+	void calculateTSP_and_UpdateMF(ChargingNode *leftmost);
 
 	double calcPowEta(int t);
 	double energy_loss_onArc(int tstart);

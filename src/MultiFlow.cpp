@@ -96,6 +96,26 @@ int MultiFlow::updateSensorsEnergy(int starttime, int endtime) {
 	return endtime;
 }
 
+int MultiFlow::calcTimeToTravel(MyCoord p1, MyCoord p2) {
+	double ttt = p1.distance(p2) / Generic::getInstance().maxVelocity;
+	return ceil(ttt / Generic::getInstance().timeSlot);
+}
+double MultiFlow::calcEnergyToTravel(MyCoord p1, MyCoord p2) {
+	int ttt = calcTimeToTravel(p1, p2);
+	return (ttt * Generic::getInstance().timeSlot * Generic::getInstance().pUfly);
+}
+
+int MultiFlow::calcTimeToWuData(void) {
+	return (Generic::getInstance().tstartup + (Generic::getInstance().ttimeout * Generic::getInstance().nr));
+}
+double MultiFlow::calcEnergyToWuData(double pWU) {
+	double ttwu = calcTimeToWuData();
+	return ((ttwu * Generic::getInstance().timeSlot * Generic::getInstance().pUfly)
+			+ ( pWU * ( (	Generic::getInstance().pUstartup * Generic::getInstance().timeSlot * Generic::getInstance().tstartup ) +
+					(Generic::getInstance().timeSlot * Generic::getInstance().ttimeout * Generic::getInstance().nr *
+							(Generic::getInstance().pUrx + ((Generic::getInstance().pUtx - Generic::getInstance().pUrx) / Generic::getInstance().ttimeout)) ) ) ) );
+}
+
 void MultiFlow::activateTSPandRecharge(ChargingNode *cnode, list<SensorNode *> &tsp) {
 	int actTime = cnode->lastTimestamp;
 	MyCoord uav_pos = cnode->pos;
@@ -103,21 +123,25 @@ void MultiFlow::activateTSPandRecharge(ChargingNode *cnode, list<SensorNode *> &
 
 	for (auto& s : tsp) {
 		// calculate time to travel
-		double ttt = s->sens->coord.distance(uav_pos) / Generic::getInstance().maxVelocity;
-		uav_energy -= ttt * Generic::getInstance().pUfly;
-		actTime += ((int) (ceil(ttt / Generic::getInstance().timeSlot)));
+		//double ttt = s->sens->coord.distance(uav_pos) / Generic::getInstance().maxVelocity;
+		//uav_energy -= ttt * Generic::getInstance().pUfly;
+		//actTime += ((int) (ceil(ttt / Generic::getInstance().timeSlot)));
+		actTime += calcTimeToTravel(uav_pos, s->sens->coord);
+		uav_energy -= calcEnergyToTravel(uav_pos, s->sens->coord);
 
 		//move the UAV
 		uav_pos = s->sens->coord;
 
 		//calculate time to wake-up and gather the data
-		double ttwu = Generic::getInstance().tstartup + (Generic::getInstance().ttimeout * Generic::getInstance().nr);
+		//double ttwu = Generic::getInstance().tstartup + (Generic::getInstance().ttimeout * Generic::getInstance().nr);
 		double pWU = 1; //TODO
-		uav_energy -= 	(ttwu * Generic::getInstance().timeSlot * Generic::getInstance().pUfly)
-						+ ( pWU * ( (	Generic::getInstance().pUstartup * Generic::getInstance().timeSlot * Generic::getInstance().tstartup ) +
-								(Generic::getInstance().timeSlot * Generic::getInstance().ttimeout * Generic::getInstance().nr *
-										(Generic::getInstance().pUrx + ((Generic::getInstance().pUtx - Generic::getInstance().pUrx) / Generic::getInstance().ttimeout)) ) ) );
-		actTime += ttwu;
+		//uav_energy -= 	(ttwu * Generic::getInstance().timeSlot * Generic::getInstance().pUfly)
+		//				+ ( pWU * ( (	Generic::getInstance().pUstartup * Generic::getInstance().timeSlot * Generic::getInstance().tstartup ) +
+		//						(Generic::getInstance().timeSlot * Generic::getInstance().ttimeout * Generic::getInstance().nr *
+		//								(Generic::getInstance().pUrx + ((Generic::getInstance().pUtx - Generic::getInstance().pUrx) / Generic::getInstance().ttimeout)) ) ) );
+		//actTime += ttwu;
+		actTime += calcTimeToWuData();
+		uav_energy -= calcEnergyToWuData(pWU);
 
 		//set the reading on the sensor
 		double pREAD = 1; //TODO
@@ -135,9 +159,12 @@ void MultiFlow::activateTSPandRecharge(ChargingNode *cnode, list<SensorNode *> &
 
 	if (uav_pos != cnode->pos) {
 		// calculate time to travel
-		double ttt = cnode->pos.distance(uav_pos) / Generic::getInstance().maxVelocity;
-		uav_energy -= ttt * Generic::getInstance().pUfly;
-		actTime += ((int) (ceil(ttt / Generic::getInstance().timeSlot)));
+		//double ttt = cnode->pos.distance(uav_pos) / Generic::getInstance().maxVelocity;
+		//uav_energy -= ttt * Generic::getInstance().pUfly;
+		//actTime += ((int) (ceil(ttt / Generic::getInstance().timeSlot)));
+
+		actTime += calcTimeToTravel(uav_pos, cnode->pos);
+		uav_energy -= calcEnergyToTravel(uav_pos, cnode->pos);
 	}
 
 	// calculate time to recharge
@@ -150,7 +177,7 @@ void MultiFlow::activateTSPandRecharge(ChargingNode *cnode, list<SensorNode *> &
 double MultiFlow::calcLossSensor(SensorNode *s_check, std::list<SensorNode *> &sList, int texp) {
 	double ris = 0;
 
-	for (auto& s : sens_list) {
+	for (auto& s : sList) {
 		for (auto& r : s->readings) {
 			if (r.readTime < texp) {
 				double actLoss = Loss::getInstance().calculate_loss_distance(s->sens, s_check->sens)
@@ -170,8 +197,8 @@ SensorNode *MultiFlow::getMinLossSensor(list<SensorNode *> &sList, int texp) {
 	SensorNode *ris = nullptr;
 	double minLoss = std::numeric_limits<double>::max();
 
-	for (auto& s : sens_list) {
-		double actLoss = calcLossSensor(s, sList, texp);
+	for (auto& s : sList) {
+		double actLoss = calcLossSensor(s, sens_list, texp);
 		if (actLoss < minLoss) {
 			minLoss = actLoss;
 			ris = s;
@@ -181,14 +208,259 @@ SensorNode *MultiFlow::getMinLossSensor(list<SensorNode *> &sList, int texp) {
 	return ris;
 }
 
+double MultiFlow::calculateCosts1Edge(TSP2MultiFlow *e) {
+	double ris = 0;
+	double pwu = 1;	//TODO
+
+	ris += calcEnergyToTravel(e->first->sens->coord, e->second->sens->coord);	//time to travel
+	ris += calcEnergyToWuData(pwu);	//time to wake-up
+
+	return ris;
+}
+
+double MultiFlow::calculateCosts1Edge(SensorNode *s1, SensorNode *s2) {
+	double ris = 0;
+	double pwu = 1;	//TODO
+
+	ris += calcEnergyToTravel(s1->sens->coord, s2->sens->coord);	//time to travel
+	ris += calcEnergyToWuData(pwu);	//time to wake-up
+
+	return ris;
+}
+
 void MultiFlow::calculateTSP_incremental(list<SensorNode *> &newTSP, list<SensorNode *> &actTSP,
-		SensorNode *sj, ChargingNode *cnode, double &tsp_time, double &tsp_cost) {
-	//TODO
+		SensorNode *sj, ChargingNode *cnode, double &tsp_time, double &tsp_energy_cost) {
+	double pwu = 1; //TODO
+
+	if (actTSP.empty()) {
+		newTSP.push_back(sj);
+		tsp_time = calcTimeToTravel(cnode->pos, sj->sens->coord) + calcTimeToTravel(sj->sens->coord, cnode->pos);
+		tsp_energy_cost = 	calcEnergyToTravel(cnode->pos, sj->sens->coord) +
+				calcEnergyToWuData(pwu) +
+				calcEnergyToTravel(sj->sens->coord, cnode->pos);
+	}
+	else {
+		Sensor *uavDummySensor = new Sensor(cnode->pos, 1, TSP_UAV_CODE);
+		SensorNode uavDummySensorNode;
+		list<SensorNode *> allSens;
+		list<TSP2MultiFlow *> edges;
+		list<TSP2MultiFlow *> finaledges;
+		list<TSP2MultiFlow *> finalcircuit;
+
+		uavDummySensorNode.sens = uavDummySensor;
+		uavDummySensorNode.lastTimestamp = cnode->lastTimestamp;
+
+		for (auto& s : actTSP) {
+			allSens.push_back(s);
+		}
+		allSens.push_back(sj);
+		allSens.push_back(&uavDummySensorNode);
+
+		auto it1 = allSens.begin();
+		while (it1 != allSens.end()) {
+			auto it2 = it1;
+			it2++;
+			while (it2 != allSens.end()) {
+				//double t;
+				TSP2MultiFlow *ne = new TSP2MultiFlow(*it1, *it2, 0);
+
+				ne->weight = calculateCosts1Edge(ne);
+				edges.push_back(ne);
+
+				it2++;
+			}
+			it1++;
+		}
+		edges.sort(TSP2MultiFlow::sortEdges);
+
+		int idFinal = 0;
+		for (auto& e : edges) {
+			//check if the sensors in the edge are already caught
+			int connected_first = 0;
+			int connected_second = 0;
+			int idFirst = -1;
+			int idSecond = -2;
+
+			for (auto& fe : finaledges) {
+				if ((e->first->sens->id == fe->first->sens->id) || (e->first->sens->id == fe->second->sens->id)) {
+					connected_first++;
+					idFirst = fe->idTSP;
+				}
+				if ((e->second->sens->id == fe->first->sens->id) || (e->second->sens->id == fe->second->sens->id)) {
+					connected_second++;
+					idSecond = fe->idTSP;
+				}
+			}
+
+			/*cout << "Checking S" << e->first->id << "-S" << e->second->id << "."
+						<< " ConnFirst: " << connected_first << " ConnSecond: " << connected_second
+						<< " idFirst: " << idFirst << " idSecond: " << idSecond
+						<< endl;*/
+
+			if ((idFirst != idSecond) && (connected_first < 2) && (connected_second < 2)) {
+				if (idFirst < 0) {
+					idFirst = idFinal++;
+				}
+				for (auto& fe : finaledges) {
+					if (fe->idTSP == idSecond) {
+						fe->idTSP = idFirst;
+					}
+				}
+				e->idTSP = idFirst;
+				finaledges.push_back(e);
+			}
+		}
+
+		// CLOSE THE CIRCUIT
+		for (auto& e : edges) {
+			int connected_first = 0;
+			int connected_second = 0;
+			for (auto& fe : finaledges) {
+				if ((e->first->sens->id == fe->first->sens->id) || (e->first->sens->id == fe->second->sens->id)) {
+					connected_first++;
+				}
+				if ((e->second->sens->id == fe->first->sens->id) || (e->second->sens->id == fe->second->sens->id)) {
+					connected_second++;
+				}
+			}
+			if ((connected_first == 1) && (connected_second == 1)) {
+				e->idTSP = finaledges.front()->idTSP;
+				finaledges.push_back(e);
+			}
+		}
+
+		SensorNode *nextS = &uavDummySensorNode;
+		int counter = 500;
+		//cout << "TSP final: UAV" << cc->clusterUAV->id;
+		do {
+			//for (auto& fe : finaledges) {
+			for (auto it_fe = finaledges.begin(); it_fe != finaledges.end(); it_fe++) {
+				if (((*it_fe)->first->sens->id == nextS->sens->id) || ((*it_fe)->second->sens->id == nextS->sens->id)) {
+					if ((*it_fe)->first->sens->id == nextS->sens->id){
+						finalcircuit.push_back(new TSP2MultiFlow(nextS, (*it_fe)->second, (*it_fe)->weight));
+						nextS = (*it_fe)->second;
+					}
+					else {
+						finalcircuit.push_back(new TSP2MultiFlow(nextS, (*it_fe)->first, (*it_fe)->weight));
+						nextS = (*it_fe)->first;
+					}
+
+					//if (nextS->id != uavDummySensor->id) {
+					//cout << "-S" << nextS->id;
+					//}
+					finaledges.erase(it_fe);
+					break;
+				}
+			}
+		} while ((nextS != &uavDummySensorNode) && ((counter--) > 0));
+
+		if (counter == 0) {
+			cerr << "ERRORE" << endl;
+			exit(EXIT_FAILURE);
+		}
+
+		bool swapMade = false;
+		int round = 50;
+		do {
+			swapMade = false;
+			for (auto it_fe1 = finalcircuit.begin(); it_fe1 != finalcircuit.end(); it_fe1++){
+				auto fe1 = *it_fe1;
+
+				auto it_fe2 = it_fe1;
+				if (it_fe2 != finalcircuit.end()) it_fe2++;
+				if (it_fe2 != finalcircuit.end()) it_fe2++; //make 2-steps ahead
+
+				for (; it_fe2 != finalcircuit.end(); it_fe2++){
+					auto fe2 = *it_fe2;
+					if (fe1->second->sens->id != fe2->first->sens->id){
+						//double sumActCost = fe1->first->sens->coord.distance(fe1->second->sens->coord) + fe2->first->sens->coord.distance(fe2->second->sens->coord);
+						double sumActCost = calculateCosts1Edge(fe1->first, fe1->second) + calculateCosts1Edge(fe2->first, fe2->second);
+						//double sumSwitch = fe1->first->sens->coord.distance(fe2->first->sens->coord) + fe1->second->sens->coord.distance(fe2->second->sens->coord);
+						double sumSwitch = calculateCosts1Edge(fe1->first, fe2->first) + calculateCosts1Edge(fe1->second, fe2->second);
+						if (sumSwitch < sumActCost) {
+							list<TSP2MultiFlow *> tmpcircuit;
+							SensorNode *tmp;
+
+							//cout << endl << "TEMP CIRCUIT BEFORE: ";
+							//for (auto& fe : finalcircuit) cout << " S" << fe->first->id << "-S" << fe->second->id;
+							//cout << endl;
+							//cout << "Swapping S" << fe1->first->id << "-S" << fe1->second->id << " with S" << fe2->first->id << "-S" << fe2->second->id << endl;
+
+							auto it_feSwitch = it_fe1;
+							it_feSwitch++;
+							while ((*it_feSwitch)->second->sens->id != (*it_fe2)->second->sens->id){
+								tmp = (*it_feSwitch)->second;
+								(*it_feSwitch)->second = (*it_feSwitch)->first;
+								(*it_feSwitch)->first = tmp;
+
+								it_feSwitch++;
+							}
+
+							tmp = fe1->second;
+							fe1->second = fe2->first;
+							//fe1->weight = fe1->first->sens->coord.distance(fe1->second->sens->coord);
+							fe1->weight = calculateCosts1Edge(fe1->first, fe1->second);
+
+							fe2->first = tmp;
+							//fe2->weight = fe2->first->sens->coord.distance(fe2->second->sens->coord);
+							fe2->weight = calculateCosts1Edge(fe2->first, fe2->second);
+
+							auto it_b = it_fe1; it_b++;
+							auto it_e = it_fe2; //it_e--;
+							reverse(it_b,  it_e);
+
+							//cout << "TEMP CIRCUIT AFTER : ";
+							//for (auto& fe : finalcircuit) cout << " S" << fe->first->id << "-S" << fe->second->id;
+							//cout << endl << endl;
+
+							swapMade = true;
+						}
+					}
+
+					if (swapMade) break;
+				}
+				if (swapMade) break;
+			}
+
+			//if (swapMade) cout << "SWAP-MADE" << endl;
+			//else cout << "NO SWAP-MADE" << endl;
+
+		} while (swapMade && ((round--) > 0));
+
+		//cout << " FINAL CIRCUIT2: ";
+		tsp_time = 0;
+		tsp_energy_cost = 0;
+		for (auto& fe : finalcircuit) {
+			//fCircuit.push_back(fe);
+			if (fe->second->sens->id != TSP_UAV_CODE) {
+				newTSP.push_back(fe->second);
+
+				tsp_energy_cost += calcEnergyToWuData(pwu);
+			}
+			tsp_time += calcTimeToTravel(fe->first->sens->coord, fe->second->sens->coord);
+			tsp_energy_cost += calcEnergyToTravel(fe->first->sens->coord, fe->second->sens->coord);
+
+			//cout << " S" << fe->first->id << "-S" << fe->second->id;
+		}
+		//cout << endl;
+
+		for (auto& ef : edges) free(ef);
+		edges.clear();
+
+		for (auto& ff : finaledges) free(ff);
+		finaledges.clear();
+
+		for (auto& ff : finalcircuit) free(ff);
+		finalcircuit.clear();
+
+		free(uavDummySensor);
+	}
 }
 
 void MultiFlow::calculateTSP_and_UpdateMF(ChargingNode *leftmost) {
 	int tk = leftmost->lastTimestamp;
 	double tsp_time = 0;
+	//double tsp_cost = 0;
 	list<SensorNode *> sens_check;
 	list<SensorNode *> actTSP;
 
@@ -198,19 +470,36 @@ void MultiFlow::calculateTSP_and_UpdateMF(ChargingNode *leftmost) {
 
 	while (!sens_check.empty()) {
 		list<SensorNode *> newTSP;
-		double t_cost = std::numeric_limits<double>::max();
+		double energy_cost = std::numeric_limits<double>::max();
 		double t_time_tmp = 0;
 
 		double t_exp = tk + (tsp_time / 2.0);
 		SensorNode *sj = getMinLossSensor(sens_check, t_exp);
-		calculateTSP_incremental(newTSP, actTSP, sj, leftmost, t_time_tmp, t_cost);
 
-		if (t_cost <= Generic::getInstance().initUAVEnergy) {
+		cerr << "Calculating TSP with U" << leftmost->u->id << " ";
+		for(auto& s : actTSP) {
+			cerr << "S" << s->sens->id << " ";
+		}
+		cerr << "NS" << sj->sens->id << " ";
+		cerr << endl;
+
+		calculateTSP_incremental(newTSP, actTSP, sj, leftmost, t_time_tmp, energy_cost);
+
+		cerr << "Calculated NEW TSP: " << endl << "C" << leftmost->u->id << " ";
+		for (auto& s : newTSP) {
+			cerr << "S" << s->sens->id << " ";
+		}
+		cerr << "C" << leftmost->u->id << " ";
+		cerr << "- with cost " << energy_cost << " having the limit of " << Generic::getInstance().initUAVEnergy
+				<< endl << endl;
+
+		if (energy_cost <= Generic::getInstance().initUAVEnergy) {
 			actTSP.clear();
 			for (auto& s : newTSP) {
 				actTSP.push_back(s);
 			}
 			tsp_time = t_time_tmp;
+			//tsp_cost = t_cost;
 		}
 
 		sens_check.remove(sj);

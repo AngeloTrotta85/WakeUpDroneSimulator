@@ -16,6 +16,10 @@
 #include "MyCoord.h"
 #include "Generic.h"
 
+#ifndef TSP_UAV_CODE
+#define TSP_UAV_CODE 100000
+#endif
+
 using namespace std;
 
 class ChargingNode {
@@ -36,6 +40,26 @@ public:
 	Sensor* sens;
 	list<SensorRead> readings;
 	int lastTimestamp;
+};
+
+class TSP2MultiFlow {
+public:
+	static bool sortEdges (const TSP2MultiFlow *first, const TSP2MultiFlow *second) {
+		return first->weight < second->weight;
+	}
+public:
+	TSP2MultiFlow(SensorNode *s1, SensorNode *s2, double w) {
+		first = s1;
+		second = s2;
+		weight = w;
+		idTSP = -1;
+	};
+
+public:
+	SensorNode *first;
+	SensorNode *second;
+	double weight;
+	int idTSP;
 };
 
 class MultiFlow {
@@ -64,11 +88,18 @@ public:
 	ChargingNode *getLeftMostUAV(int end_time);
 	int updateSensorsEnergy(int starttime, int endtime);
 
+	int calcTimeToTravel(MyCoord p1, MyCoord p2);
+	double calcEnergyToTravel(MyCoord p1, MyCoord p2);
+	int calcTimeToWuData(void);
+	double calcEnergyToWuData(double pWU);
+
 	void activateTSPandRecharge(ChargingNode *cnode, list<SensorNode *> &tsp);
 	double calcLossSensor(SensorNode *s_check, list<SensorNode *> &sList, int texp);
 	SensorNode *getMinLossSensor(list<SensorNode *> &sList, int texp);
+	double calculateCosts1Edge(TSP2MultiFlow *e);
+	double calculateCosts1Edge(SensorNode *s1, SensorNode *s2);
 	void calculateTSP_incremental(list<SensorNode *> &newTSP, list<SensorNode *> &actTSP,
-			SensorNode *sj, ChargingNode *cnode, double &tsp_time, double &tsp_cost);
+			SensorNode *sj, ChargingNode *cnode, double &tsp_time, double &tsp_energy_cost);
 	void calculateTSP_and_UpdateMF(ChargingNode *leftmost);
 
 	double calcPowEta(int t);

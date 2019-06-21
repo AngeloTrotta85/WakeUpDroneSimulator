@@ -211,8 +211,8 @@ int main(int argc, char **argv) {
 	double energy2wakeup = 0.01;		// micro-Joule
 
 	//MultiFlow
-	int tsup = 20;						// time-slots -> t_{startup}
-	int ttout = 20;						// time-slots -> t_{timeout}
+	double tsup = 20;					// sec -> t_{startup}
+	double ttout = 20;					// sec -> t_{timeout}
 	int numr = 3;						// n_r
 	double ps_sup = 0;					// Watt -> p^S_{startup}
 	double ps_tx = 0;					// Watt -> p^S_{tx}
@@ -423,10 +423,10 @@ int main(int argc, char **argv) {
 		}
 	}
 	if (!multiflow_t_startup.empty()) {
-		tsup = atoi(multiflow_t_startup.c_str());
+		tsup = atof(multiflow_t_startup.c_str());
 	}
 	if (!multiflow_t_timeout.empty()) {
-		ttout = atoi(multiflow_t_timeout.c_str());
+		ttout = atof(multiflow_t_timeout.c_str());
 	}
 	if (!multiflow_nr.empty()) {
 		numr = atoi(multiflow_nr.c_str());

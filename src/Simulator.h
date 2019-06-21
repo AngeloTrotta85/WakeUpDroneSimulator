@@ -70,6 +70,8 @@ public:
 	void run_multiflow(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &sensList, std::list<Readings *> &allReadings);
 
 	void finish(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &sensList, std::list<Readings *> &allReadings);
+	void finish_normal(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &sensList, std::list<Readings *> &allReadings);
+	void finish_multiflow(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &sensList, std::list<Readings *> &allReadings);
 
 	void setMainAlgo(std::string algotype_main);
 	void setClusteringAlgo(std::string algotype_clustering);
@@ -104,6 +106,8 @@ private:
 	TSP *tsp;
 	Main_Algo mainalgo;
 	Simu_type simtype;
+
+	MultiFlow *mf;
 };
 
 #endif /* SIMULATOR_H_ */

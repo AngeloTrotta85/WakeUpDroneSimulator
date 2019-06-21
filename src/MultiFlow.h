@@ -27,13 +27,13 @@ public:
 	int id;
 	UAV* u;
 	MyCoord pos;
-	int lastTimestamp;
+	double lastTimestamp;
 };
 
 class SensorNode {
 public:
 	typedef struct SensorRead{
-		int readTime;
+		double readTime;
 		UAV *uav;
 	} SensorRead;
 public:
@@ -86,15 +86,17 @@ public:
 	double calculate_pWU(double h, int twu, double sigma2loc, double sigma2rho);
 
 	ChargingNode *getLeftMostUAV(int end_time);
-	int updateSensorsEnergy(int starttime, int endtime);
+	double sensor_energy_loss_read(double pwu);
+	double updateSensorsEnergy(int starttime, int endtime);
 
-	int calcTimeToTravel(MyCoord p1, MyCoord p2);
+	double calcTimeToTravel(MyCoord p1, MyCoord p2);
 	double calcEnergyToTravel(MyCoord p1, MyCoord p2);
-	int calcTimeToWuData(void);
+	double calcTimeToWuData(void);
 	double calcEnergyToWuData(double pWU);
 
 	void activateTSPandRecharge(ChargingNode *cnode, list<SensorNode *> &tsp);
 	double calcLossSensor(SensorNode *s_check, list<SensorNode *> &sList, int texp);
+	double calcLossSensorPresentFuture(SensorNode *s_check, std::list<SensorNode *> &sList, int texp);
 	SensorNode *getMinLossSensor(list<SensorNode *> &sList, int texp);
 	double calculateCosts1Edge(TSP2MultiFlow *e);
 	double calculateCosts1Edge(SensorNode *s1, SensorNode *s2);
@@ -114,14 +116,17 @@ public:
 	double calc_Gamma(double x, double y, double rho_x, double rho_y);
 	double calcRF2DC_efficiency(double rcvPow);
 
+	double getLastSensorRead(void);
+	double calcIndex(void);
+
 private:
 	map<int, ChargingNode *> cs_map;
 	list<SensorNode *> sens_list;
 
 	map<int, double> efficiencyMap;
 
-	int actSensorTimeStamp;
-	int actUAVTimeStamp;
+	double actSensorTimeStamp;
+	double actUAVTimeStamp;
 
 	double pWU;
 };

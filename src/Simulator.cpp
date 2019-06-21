@@ -146,6 +146,19 @@ void Simulator::setTSPAlgo(std::string algotype_tsp) {
 }
 
 void Simulator::finish(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &sensList, std::list<Readings *> &allReadings) {
+	switch (simtype) {
+		case SIMU_NORMAL:
+		default:
+			finish_normal(clustVec, sensList, allReadings);
+			break;
+
+		case SIMU_MULTI_FLOW:
+			finish_multiflow(clustVec, sensList, allReadings);
+			break;
+	}
+}
+
+void Simulator::finish_normal(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &sensList, std::list<Readings *> &allReadings) {
 
 	if (!Generic::getInstance().statFilename.empty()) {
 		double avg, min, max, var;
@@ -586,22 +599,37 @@ void Simulator::run_multiflow(std::vector<CoordCluster *> &clustVec, std::list<S
 		}
 	}
 
-	MultiFlow mf;
-	mf.init();
+	mf = new MultiFlow();
+	mf->init();
 
 	for (auto& cv : clustVec) {
-		mf.addChargStationAndUAV(*(cv->clusterHead), cv->clusterUAV);
+		mf->addChargStationAndUAV(*(cv->clusterHead), cv->clusterUAV);
 	}
 	for (auto& s : sensList) {
-		mf.addSensor(s);
+		mf->addSensor(s);
 	}
 
-	mf.run(end_time);
+	mf->run(end_time);
 
 }
 
 
+void Simulator::finish_multiflow(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &sensList, std::list<Readings *> &allReadings) {
+	if (!Generic::getInstance().statFilename.empty()) {
 
+		std::ofstream ofs (Generic::getInstance().statFilename, std::ofstream::out | std::ofstream::app);
+		if (ofs.is_open()) {
+
+			double lifetimeSec = mf->getLastSensorRead();
+			ofs << "FINISH LifetimeSecs " << lifetimeSec << endl;
+			ofs << "FINISH LifetimeDays " << ((double) lifetimeSec) / 86400.0 << endl;
+
+			double index = mf->calcIndex();
+			ofs << "FINISH Index " << index << endl;
+
+		}
+	}
+}
 
 
 

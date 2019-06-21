@@ -92,7 +92,7 @@ public:
 		hitmapFilename = std::string(hitmapFile);
 	}
 
-	void setMultiFlowParam(int tsup, int ttout, int numr, double ps_sup, double ps_tx,
+	void setMultiFlowParam(double tsup, double ttout, int numr, double ps_sup, double ps_tx,
 			double ps_rx, double pu_sup, double pu_tx, double pu_rx, double pu_fly) {
 		tstartup = tsup;
 		ttimeout = ttout;
@@ -139,8 +139,8 @@ public:
 	std::string statFilename;
 	std::string hitmapFilename;
 
-	int tstartup;
-	int ttimeout;
+	double tstartup;
+	double ttimeout;
 	int nr;
 	double pSstartup;
 	double pStx;

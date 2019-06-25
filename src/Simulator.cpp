@@ -47,6 +47,8 @@ Simulator::Simulator() {
 	tsp = nullptr;
 	mainalgo = ALGO_BEE;
 	simtype = SIMU_NORMAL;
+
+	mf = nullptr;
 }
 
 void Simulator::init(Simu_type st, int stime, int etime) {
@@ -155,6 +157,10 @@ void Simulator::finish(std::vector<CoordCluster *> &clustVec, std::list<Sensor *
 		case SIMU_MULTI_FLOW:
 			finish_multiflow(clustVec, sensList, allReadings);
 			break;
+
+		case SIMU_DISTRIBUTED:
+			finish_distributed(clustVec, sensList, allReadings);
+			break;
 	}
 }
 
@@ -225,6 +231,10 @@ void Simulator::run(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &
 
 		case SIMU_MULTI_FLOW:
 			run_multiflow(clustVec, sensList, allReadings);
+			break;
+
+		case SIMU_DISTRIBUTED:
+			run_distributed(clustVec, sensList, allReadings);
 			break;
 	}
 }
@@ -631,6 +641,53 @@ void Simulator::finish_multiflow(std::vector<CoordCluster *> &clustVec, std::lis
 	}
 }
 
+
+
+
+
+
+
+
+void Simulator::run_distributed(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &sensList, std::list<Readings *> &allReadings) {
+	if (!Generic::getInstance().statFilename.empty()) {
+		std::ofstream ofs (Generic::getInstance().statFilename, std::ofstream::out);
+		if (ofs.is_open()) {
+			ofs << "";
+			ofs.close();
+		}
+	}
+
+	mf = new MultiFlow();
+	mf->init();
+
+	for (auto& cv : clustVec) {
+		mf->addChargStationAndUAV(*(cv->clusterHead), cv->clusterUAV);
+	}
+	for (auto& s : sensList) {
+		mf->addSensor(s);
+	}
+
+	mf->run(end_time);
+
+}
+
+
+void Simulator::finish_distributed(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &sensList, std::list<Readings *> &allReadings) {
+	if (!Generic::getInstance().statFilename.empty()) {
+
+		std::ofstream ofs (Generic::getInstance().statFilename, std::ofstream::out | std::ofstream::app);
+		if (ofs.is_open()) {
+
+			double lifetimeSec = mf->getLastSensorRead();
+			ofs << "FINISH LifetimeSecs " << lifetimeSec << endl;
+			ofs << "FINISH LifetimeDays " << ((double) lifetimeSec) / 86400.0 << endl;
+
+			double index = mf->calcIndex();
+			ofs << "FINISH Index " << index << endl;
+
+		}
+	}
+}
 
 
 

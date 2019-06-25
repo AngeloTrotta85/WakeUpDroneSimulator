@@ -58,7 +58,8 @@ public:
 public:
 	typedef enum {
 		SIMU_NORMAL,
-		SIMU_MULTI_FLOW
+		SIMU_MULTI_FLOW,
+		SIMU_DISTRIBUTED
 	} Simu_type;
 
 public:
@@ -68,10 +69,12 @@ public:
 	void run(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &sensList, std::list<Readings *> &allReadings);
 	void run_normal(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &sensList, std::list<Readings *> &allReadings);
 	void run_multiflow(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &sensList, std::list<Readings *> &allReadings);
+	void run_distributed(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &sensList, std::list<Readings *> &allReadings);
 
 	void finish(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &sensList, std::list<Readings *> &allReadings);
 	void finish_normal(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &sensList, std::list<Readings *> &allReadings);
 	void finish_multiflow(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &sensList, std::list<Readings *> &allReadings);
+	void finish_distributed(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &sensList, std::list<Readings *> &allReadings);
 
 	void setMainAlgo(std::string algotype_main);
 	void setClusteringAlgo(std::string algotype_clustering);

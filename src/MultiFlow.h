@@ -87,7 +87,7 @@ public:
 
 	ChargingNode *getLeftMostUAV(int end_time);
 	double sensor_energy_loss_read(double pwu);
-	double updateSensorsEnergy(int starttime, int endtime);
+	bool updateSensorsEnergy(int starttime, int endtime);
 
 	double calcTimeToTravel(MyCoord p1, MyCoord p2);
 	double calcEnergyToTravel(MyCoord p1, MyCoord p2);
@@ -105,6 +105,7 @@ public:
 	void calculateTSP_and_UpdateMF(ChargingNode *leftmost);
 
 	double calcPowEta(int t);
+	double calcPowEtaSens(double e, double t);
 	double energy_loss_onArc(int tstart);
 
 public:

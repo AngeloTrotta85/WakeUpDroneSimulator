@@ -214,12 +214,12 @@ int main(int argc, char **argv) {
 	double tsup = 20;					// sec -> t_{startup}
 	double ttout = 20;					// sec -> t_{timeout}
 	int numr = 3;						// n_r
-	double ps_sup = 0;					// Watt -> p^S_{startup}
-	double ps_tx = 0;					// Watt -> p^S_{tx}
-	double ps_rx = 0;					// Watt -> p^S_{rx}
-	double pu_sup = 0;					// Watt -> p^U_{startup}
-	double pu_tx = 0;					// Watt -> p^U_{tx}
-	double pu_rx = 0;					// Watt -> p^U_{rx}
+	double ps_sup = 0.000002;			// Watt -> p^S_{startup}
+	double ps_tx = 0.000001;			// Watt -> p^S_{tx}
+	double ps_rx = 0.000001;			// Watt -> p^S_{rx}
+	double pu_sup = 0.000002;			// Watt -> p^U_{startup}
+	double pu_tx = 0.000001;			// Watt -> p^U_{tx}
+	double pu_rx = 0.000001;			// Watt -> p^U_{rx}
 	double gUmax = 8;					// dBi -> g^U_{max}
 	double aUmax = M_PI_4;				// rad -> a^U_{max}
 	double gSmax = 1;					// dBi -> g^S_{max}
@@ -420,6 +420,9 @@ int main(int argc, char **argv) {
 		}
 		else if (simu_type.compare("multiflow") == 0){
 			st = Simulator::SIMU_MULTI_FLOW;
+		}
+		else if (simu_type.compare("distributed") == 0){
+			st = Simulator::SIMU_DISTRIBUTED;
 		}
 	}
 	if (!multiflow_t_startup.empty()) {

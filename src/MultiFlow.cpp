@@ -64,6 +64,16 @@ double MultiFlow::calcPowEta(int t) {
 	return 0;
 }
 
+double MultiFlow::calcPowEtaSens(double e, double t) {
+
+	long double selfDischargeRatio = (100.0 - Generic::getInstance().sensorBatterySelfDischarge) / 100.0;
+	long double slotsPerMonth = (30.0 * 24.0 * 60.0 * 60.0) / Generic::getInstance().timeSlot;
+
+	long double sensorSelfDischargePerSlot = powl(selfDischargeRatio, 1.0 / slotsPerMonth);
+
+	return (e * (1.0 - sensorSelfDischargePerSlot));
+}
+
 double MultiFlow::energy_loss_onArc(int tstart) {
 	double ris = 0;
 	int tend = tstart + Generic::getInstance().tstartup + (Generic::getInstance().nr * Generic::getInstance().ttimeout);
@@ -86,11 +96,16 @@ double MultiFlow::sensor_energy_loss_read(double pwu) {
 	return (pwu * (estartup + ecomm));
 }
 
-double MultiFlow::updateSensorsEnergy(int starttime, int endtime) {
+bool MultiFlow::updateSensorsEnergy(int starttime, int endtime) {
+	bool ris = true;
+	long double minEnergy = 100000;
+	SensorNode *snMin = nullptr;
+
 	for (auto& s : sens_list) {
 		// update the energy with the self-discharge
 		for (int i = (starttime+1); i <= endtime; i++) {
-			s->sens->residual_energy -= calcPowEta(i) * Generic::getInstance().timeSlot;
+			//s->sens->residual_energy -= calcPowEtaSens(s->sens->residual_energy) * Generic::getInstance().timeSlot;
+			s->sens->residual_energy -= calcPowEtaSens(s->sens->residual_energy, Generic::getInstance().timeSlot);
 		}
 
 		for (auto& l : s->readings) {
@@ -113,9 +128,30 @@ double MultiFlow::updateSensorsEnergy(int starttime, int endtime) {
 				}*/
 			}
 		}
+
+		if (s->sens->residual_energy < minEnergy) {
+			minEnergy = s->sens->residual_energy;
+			snMin = s;
+		}
+
+		if (s->sens->residual_energy <= 0) {
+			ris = false;
+		}
 	}
 
-	return endtime;
+	if (snMin != nullptr) {
+		cout << "SENSOR S" << snMin->sens->id << " has minimal energy of " << snMin->sens->residual_energy << endl;
+	}
+
+	/*cout << "SENSORS ";
+	cout << "- Eta: " << calcPowEtaSens((*sens_list.begin())->sens->residual_energy, Generic::getInstance().timeSlot);
+	cout << "- ReadLoss: " << sensor_energy_loss_read(1) << " - ";
+	for (auto& s : sens_list) {
+		cout << "S" << s->sens->id << "(" << s->sens->residual_energy << ") ";
+	}
+	cout << endl;*/
+
+	return ris;
 }
 
 double MultiFlow::calcTimeToTravel(MyCoord p1, MyCoord p2) {
@@ -260,6 +296,7 @@ double MultiFlow::calcLossSensorPresentFuture(SensorNode *s_check, std::list<Sen
 SensorNode *MultiFlow::getMinLossSensor(list<SensorNode *> &sList, int texp) {
 	SensorNode *ris = nullptr;
 	double minLoss = std::numeric_limits<double>::max();
+	//double minLoss = -1000;
 
 	//cerr << "Calculating minLossSensor with Texp: " << texp << " - ";
 	for (auto& s : sList) {
@@ -1021,7 +1058,12 @@ void MultiFlow::run(int end_time) {
 	ChargingNode *leftmost = getLeftMostUAV(end_time); //cs_map.begin()->second;
 	while(actSensorTimeStamp < end_time){
 		if (actSensorTimeStamp < actUAVTimeStamp) {
-			actSensorTimeStamp = updateSensorsEnergy(actSensorTimeStamp, actUAVTimeStamp);
+			bool sensUP = updateSensorsEnergy(actSensorTimeStamp, actUAVTimeStamp);
+			actSensorTimeStamp = actUAVTimeStamp;
+
+			if (!sensUP) {
+				break;
+			}
 		}
 
 		calculateTSP_and_UpdateMF(leftmost);
@@ -1030,7 +1072,12 @@ void MultiFlow::run(int end_time) {
 		if (leftmost == nullptr) {
 			actUAVTimeStamp = end_time;
 			if (actSensorTimeStamp < actUAVTimeStamp) {
-				actSensorTimeStamp = updateSensorsEnergy(actSensorTimeStamp, actUAVTimeStamp);
+				bool sensUP = updateSensorsEnergy(actSensorTimeStamp, actUAVTimeStamp);
+				actSensorTimeStamp = actUAVTimeStamp;
+
+				if (!sensUP) {
+					break;
+				}
 			}
 
 			break;
@@ -1068,7 +1115,12 @@ double MultiFlow::calcIndex(void) {
 
 	for (auto& s : sens_list) {
 		for (auto& r : s->readings) {
-			ris += calcLossSensor(s, sens_list, r.readTime);
+			double actIndex = 1.0 - calcLossSensor(s, sens_list, r.readTime);
+			if (actIndex < 0) {
+				cerr << "Error in calculating index: " << actIndex << endl;
+				exit(EXIT_FAILURE);
+			}
+			ris += actIndex;
 		}
 	}
 

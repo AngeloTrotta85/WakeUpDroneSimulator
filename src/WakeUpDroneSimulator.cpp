@@ -224,6 +224,7 @@ int main(int argc, char **argv) {
 	double aUmax = M_PI_4;				// rad -> a^U_{max}
 	double gSmax = 1;					// dBi -> g^S_{max}
 	double aSmax = M_PI;				// rad -> a^S_{max}
+	double uavComRange = 50.0;			// meters -> UAV communication range
 
 	//Statistics
 	int timeslots2log = 30;
@@ -304,6 +305,8 @@ int main(int argc, char **argv) {
 	const std::string &multiflow_aU_max = input.getCmdOption("-mfaUmax");
 	const std::string &multiflow_gS_max = input.getCmdOption("-mfgSmax");
 	const std::string &multiflow_aS_max = input.getCmdOption("-mfaSmax");
+
+	const std::string &multiflow_uav_com_range = input.getCmdOption("-uavComR");
 
 	if (!seedUser.empty()) {
 		int seedR = atoi(seedUser.c_str());
@@ -474,13 +477,16 @@ int main(int argc, char **argv) {
 	if (!uavVarRot.empty()) {
 		varRot = atof(uavVarRot.c_str());
 	}
+	if (!multiflow_uav_com_range.empty()) {
+		uavComRange = atof(multiflow_uav_com_range.c_str());
+	}
 
 	Generic::getInstance().init(timeSlot);
 	Generic::getInstance().setSensorParam(initEnergySensor, sensorSelfDischarge, eON, eBOOT, fullRandomSensors);
 	Generic::getInstance().setUAVParam(initEnergyUAV, flightAltitude, maxVelocity, motorPower, rechargePower, time2read, energy2read, varGPS, varPilot, varRot);
 	Generic::getInstance().setWakeUpParam(wakeupPower, wakeupMinPower, wakeupFreq, energy2wakeup, gainTx, gainRx, gUmax, aUmax, gSmax, aSmax);
 	Generic::getInstance().setStatParam(makeStateDuringSim, statFile, hitmapFile);
-	Generic::getInstance().setMultiFlowParam(tsup, ttout, numr, ps_sup, ps_tx, ps_rx, pu_sup, pu_tx, pu_rx, 4*motorPower);
+	Generic::getInstance().setMultiFlowParam(tsup, ttout, numr, ps_sup, ps_tx, ps_rx, pu_sup, pu_tx, pu_rx, 4*motorPower, uavComRange);
 	Loss::getInstance().init(kd, kt, ke, md, mt, me, useSigmoid, a);
 	Statistics::getInstance().init(timeslots2log);
 

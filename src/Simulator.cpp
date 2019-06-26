@@ -661,13 +661,13 @@ void Simulator::run_distributed(std::vector<CoordCluster *> &clustVec, std::list
 	mf->init();
 
 	for (auto& cv : clustVec) {
-		mf->addChargStationAndUAV(*(cv->clusterHead), cv->clusterUAV);
+		mf->addChargStationAndUAV_distributed(*(cv->clusterHead), cv->clusterUAV);
 	}
 	for (auto& s : sensList) {
 		mf->addSensor(s);
 	}
 
-	mf->run(end_time);
+	mf->run_distributed(end_time);
 
 }
 

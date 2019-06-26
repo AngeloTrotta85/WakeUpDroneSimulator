@@ -37,6 +37,22 @@ void MultiFlow::addChargStationAndUAV(MyCoord c, UAV *u) {
 	cs_map[u->id] = newcs;
 }
 
+void MultiFlow::addChargStationAndUAV_distributed(MyCoord c, UAV *u) {
+	ChargingNode *newcs = new ChargingNode();
+
+	newcs->id = u->id;
+	newcs->pos = c;
+	newcs->u = u;
+	newcs->lastTimestamp = 0;
+
+	cs_map[u->id] = newcs;
+
+	UavDistributed *newuav = new UavDistributed();
+	newuav->cn = newcs;
+
+	uav_list.push_back(newuav);
+}
+
 ChargingNode *MultiFlow::getLeftMostUAV(int end_time) {
 	ChargingNode *ris = cs_map.begin()->second;
 	int risTime = ris->lastTimestamp;
@@ -1126,5 +1142,70 @@ double MultiFlow::calcIndex(void) {
 
 	return ris;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+void MultiFlow::run_distributed(double end_time) {
+	double sim_time = 0;
+
+	for (auto& uav : uav_list) {
+		for (auto& s : sens_list) {
+			UavDistributed::sensElem ns;
+			ns.sens = s;
+			ns.lastTimeStamp = sim_time;
+
+			uav->sensMap[s->sens->id] = ns;
+		}
+	}
+
+	while(sim_time <= end_time) {
+
+		updateNeighMaps(sim_time);
+
+		for (auto& uav : uav_list) {
+			run_uav(uav, sim_time);
+		}
+
+		sim_time += Generic::getInstance().timeSlot;
+	}
+
+	cerr << "Simulation FINISHED!!!" << endl;
+}
+
+void MultiFlow::updateNeighMaps(double timenow) {
+	for (auto& u1 : uav_list) {
+		for (auto& u2 : uav_list) {
+			if (u1->cn->id != u2->cn->id) {
+				if (u1->cn->u->actual_coord.distance(u2->cn->u->actual_coord) <= Generic::getInstance().uavComRange) {
+					UavDistributed::neighUAV nuav;
+					nuav.uav = u2;
+					nuav.lastTimeStamp = timenow;
+
+					u1->neighMap[u2->cn->id] = nuav;
+				}
+			}
+		}
+	}
+}
+
+void MultiFlow::run_uav(UavDistributed *uav, double simTime) {
+
+}
+
+
 
 

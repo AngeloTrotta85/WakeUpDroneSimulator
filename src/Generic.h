@@ -93,7 +93,8 @@ public:
 	}
 
 	void setMultiFlowParam(double tsup, double ttout, int numr, double ps_sup, double ps_tx,
-			double ps_rx, double pu_sup, double pu_tx, double pu_rx, double pu_fly) {
+			double ps_rx, double pu_sup, double pu_tx, double pu_rx, double pu_fly,
+			double uavCR) {
 		tstartup = tsup;
 		ttimeout = ttout;
 		nr = numr;
@@ -104,6 +105,7 @@ public:
 		pUtx = pu_tx;
 		pUrx = pu_rx;
 		pUfly = pu_fly;
+		uavComRange = uavCR;
 	}
 
 	double getTime2Travel(MyCoord start, MyCoord end);
@@ -156,6 +158,8 @@ public:
 	double sigmaGPS;
 	double sigmaPilot;
 	double sigmaRot;
+
+	double uavComRange;
 };
 
 #endif /* GENERIC_H_ */

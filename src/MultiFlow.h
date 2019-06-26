@@ -62,14 +62,35 @@ public:
 	int idTSP;
 };
 
+class UavDistributed {
+public:
+	typedef struct neighUAV {
+		UavDistributed *uav;
+		double lastTimeStamp;
+	} neighUAV;
+
+	typedef struct sensElem {
+		SensorNode *sens;
+		double lastTimeStamp;
+	} sensElem;
+
+public:
+	ChargingNode *cn;
+	map<int, neighUAV> neighMap;
+	map<int, sensElem> sensMap;
+};
+
 class MultiFlow {
 public:
 	MultiFlow();
 
 	void addSensor(Sensor *s);
 	void addChargStationAndUAV(MyCoord c, UAV *u);
+	void addChargStationAndUAV_distributed(MyCoord c, UAV *u);
 
 	void run(int end_time);
+	void run_distributed(double end_time);
+
 	void init(void);
 
 	//double getPDF_Eloc(MyCoord e);
@@ -108,6 +129,9 @@ public:
 	double calcPowEtaSens(double e, double t);
 	double energy_loss_onArc(int tstart);
 
+	void run_uav(UavDistributed *uav, double simTime) ;
+	void updateNeighMaps(double timenow);
+
 public:
 	void initEfficiencyMap(void);
 	double calc_Beta(double d3D, double h, double d2D);
@@ -122,6 +146,7 @@ public:
 
 private:
 	map<int, ChargingNode *> cs_map;
+	list<UavDistributed *> uav_list;
 	list<SensorNode *> sens_list;
 
 	map<int, double> efficiencyMap;

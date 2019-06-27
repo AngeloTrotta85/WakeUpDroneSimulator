@@ -40,6 +40,13 @@ public:
 	Sensor* sens;
 	list<SensorRead> readings;
 	int lastTimestamp;
+
+	double accumulatedEnergy_uJ;
+	int irradiatingTimeSlots;
+	int startupTimeSlots;
+	int commTimeSlots;
+	int nCommAttempt;
+	UAV *irradiatingUAV;
 };
 
 class TSP2MultiFlow {
@@ -64,6 +71,14 @@ public:
 
 class UavDistributed {
 public:
+	typedef enum uavState {
+		RECHARGING,
+		MOVING,
+		WAKINGUP,
+		STARTINGUP,
+		READING
+	} uavState;
+
 	typedef struct neighUAV {
 		UavDistributed *uav;
 		double lastTimeStamp;
@@ -78,9 +93,20 @@ public:
 	ChargingNode *cn;
 	map<int, neighUAV> neighMap;
 	map<int, sensElem> sensMap;
+
+	list<SensorNode *> activeTSP;
+
+	uavState us;
 };
 
 class MultiFlow {
+public:
+	typedef struct wakeupVal {
+		double h;
+		double estimatedIrrEnergyPerSlot_uJ;
+		double maxTwakeup;
+	} wakeupVal;
+
 public:
 	MultiFlow();
 
@@ -132,6 +158,8 @@ public:
 	void run_uav(UavDistributed *uav, double simTime) ;
 	void updateNeighMaps(double timenow);
 
+	void calculateTSP_distributed(UavDistributed *uav, double simTime);
+
 public:
 	void initEfficiencyMap(void);
 	double calc_Beta(double d3D, double h, double d2D);
@@ -155,6 +183,7 @@ private:
 	double actUAVTimeStamp;
 
 	double pWU;
+	wakeupVal wuVal;
 };
 
 #endif /* MULTIFLOW_H_ */

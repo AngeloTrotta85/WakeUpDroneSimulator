@@ -22,6 +22,12 @@ void MultiFlow::addSensor(Sensor *s) {
 
 	newsn->sens = s;
 	newsn->lastTimestamp = 0;
+	newsn->accumulatedEnergy_uJ = 0;
+	newsn->irradiatingTimeSlots = 0;
+	newsn->startupTimeSlots = 0;
+	newsn->commTimeSlots = 0;
+	newsn->nCommAttempt = 0;
+	newsn->irradiatingUAV = nullptr;
 
 	sens_list.push_back(newsn);
 }
@@ -1162,6 +1168,7 @@ double MultiFlow::calcIndex(void) {
 void MultiFlow::run_distributed(double end_time) {
 	double sim_time = 0;
 
+	//init uavs
 	for (auto& uav : uav_list) {
 		for (auto& s : sens_list) {
 			UavDistributed::sensElem ns;
@@ -1170,7 +1177,14 @@ void MultiFlow::run_distributed(double end_time) {
 
 			uav->sensMap[s->sens->id] = ns;
 		}
+
+		uav->us = UavDistributed::RECHARGING;
 	}
+
+	//init wuVal	//TODO
+	wuVal.estimatedIrrEnergyPerSlot_uJ = 0.1;
+	wuVal.maxTwakeup = 10;
+	wuVal.h = 5;
 
 	while(sim_time <= end_time) {
 
@@ -1191,11 +1205,30 @@ void MultiFlow::updateNeighMaps(double timenow) {
 		for (auto& u2 : uav_list) {
 			if (u1->cn->id != u2->cn->id) {
 				if (u1->cn->u->actual_coord.distance(u2->cn->u->actual_coord) <= Generic::getInstance().uavComRange) {
-					UavDistributed::neighUAV nuav;
-					nuav.uav = u2;
-					nuav.lastTimeStamp = timenow;
+					if (u1->neighMap.count(u2->cn->id) == 0) {
+						UavDistributed::neighUAV nuav;
+						nuav.uav = u2;
+						nuav.lastTimeStamp = timenow;
 
-					u1->neighMap[u2->cn->id] = nuav;
+						u1->neighMap[u2->cn->id] = nuav;
+					}
+					else {
+						u1->neighMap[u2->cn->id].lastTimeStamp = timenow;
+					}
+
+					//update sensor timestamp
+					for (auto& s2 : u2->sensMap) {
+						if (s2.second.lastTimeStamp > u1->sensMap[s2.first].lastTimeStamp) {
+							u1->sensMap[s2.first].lastTimeStamp = s2.second.lastTimeStamp;
+						}
+					}
+				}
+				else {
+					if (u1->neighMap.count(u2->cn->id) > 0) {
+						if ((timenow - u1->neighMap[u2->cn->id].lastTimeStamp) > Generic::getInstance().neighUAVTimeout) {
+							u1->sensMap.erase(u2->cn->id);
+						}
+					}
 				}
 			}
 		}
@@ -1203,6 +1236,129 @@ void MultiFlow::updateNeighMaps(double timenow) {
 }
 
 void MultiFlow::run_uav(UavDistributed *uav, double simTime) {
+	SensorNode *sn;
+
+	switch (uav->us) {
+	case UavDistributed::MOVING:
+		uav->cn->u->residual_energy -= Generic::getInstance().singleMotorPowerUAV * 4.0 * Generic::getInstance().timeSlot;
+		if ((uav->activeTSP.size() == 0) && (uav->cn->u->actual_coord == uav->cn->pos)) {
+			//arrived back to the charging station
+			uav->cn->u->actual_coord = uav->cn->pos;	// set the exact position due to possible numerical error
+			uav->us = UavDistributed::RECHARGING;
+		}
+		else if ((uav->activeTSP.size() > 0) && (uav->cn->u->actual_coord == (*(uav->activeTSP.begin()))->sens->coord)) {
+			//arrived to destination sensor
+
+			//check if nobody is there
+			sn = *(uav->activeTSP.begin());
+			if (sn->irradiatingUAV == nullptr) {
+				sn->irradiatingUAV = uav->cn->u;
+				sn->irradiatingTimeSlots = 0;
+				sn->accumulatedEnergy_uJ = 0;
+				uav->us = UavDistributed::WAKINGUP;
+			}
+			else {
+				// the sensor is being used by another UAV. Go to the next
+				uav->activeTSP.pop_front();
+			}
+		}
+		else {
+			MyCoord endP;
+			if (uav->activeTSP.size() == 0) endP = uav->cn->pos;
+			else endP = (*(uav->activeTSP.begin()))->sens->coord;
+
+			double dist2dest = uav->cn->u->actual_coord.distance(endP);
+			double oneStepDist = ((double) Generic::getInstance().timeSlot) * Generic::getInstance().maxVelocity;
+			if (oneStepDist >= dist2dest) {
+				// I will arrive to destination
+				uav->cn->u->actual_coord = endP;
+			}
+			else {
+				MyCoord unit = endP - uav->cn->u->actual_coord;
+				unit.normalize();
+				unit *= oneStepDist;
+				uav->cn->u->actual_coord += unit;
+			}
+		}
+		break;
+
+	case UavDistributed::WAKINGUP:
+		uav->cn->u->residual_energy -= Generic::getInstance().singleMotorPowerUAV * 4.0 * Generic::getInstance().timeSlot;
+		uav->cn->u->residual_energy -= Generic::getInstance().wakeupTxPower * Generic::getInstance().timeSlot;
+
+		sn = *(uav->activeTSP.begin());
+
+		if (sn->irradiatingUAV == uav->cn->u) {
+			// Ok I'm already irradiating
+			sn->accumulatedEnergy_uJ += wuVal.estimatedIrrEnergyPerSlot_uJ;
+			sn->irradiatingTimeSlots++;
+			if (sn->accumulatedEnergy_uJ >= Generic::getInstance().energyToWakeUp) {
+				// OK the sensor wakes-up
+				uav->us = UavDistributed::STARTINGUP;
+				sn->startupTimeSlots = 0;
+			}
+			else if(sn->irradiatingTimeSlots >= ceil(wuVal.maxTwakeup / Generic::getInstance().timeSlot)) {
+				// the sensor didn't wake-up within maxTwakeup time. Go to the next
+				uav->activeTSP.pop_front();
+				sn->irradiatingUAV = nullptr;
+				uav->us = UavDistributed::MOVING;
+			}
+		}
+		else {
+			throw std::logic_error("Impossible that irradiating a sensor not mine");
+		}
+		break;
+
+	case UavDistributed::STARTINGUP:
+		uav->cn->u->residual_energy -= Generic::getInstance().singleMotorPowerUAV * 4.0 * Generic::getInstance().timeSlot;
+		uav->cn->u->residual_energy -= Generic::getInstance().pUstartup * Generic::getInstance().timeSlot;
+
+		sn = *(uav->activeTSP.begin());
+
+		sn->sens->residual_energy -= Generic::getInstance().pSstartup * Generic::getInstance().timeSlot;
+
+		sn->startupTimeSlots++;
+		if(sn->startupTimeSlots >= ceil(Generic::getInstance().tstartup / Generic::getInstance().timeSlot)) {
+			sn->commTimeSlots = 0;
+			sn->nCommAttempt = 0;
+			uav->us = UavDistributed::READING;
+		}
+		break;
+		/*
+
+		(Generic::getInstance().ttimeout * Generic::getInstance().nr *
+				(Generic::getInstance().pUrx + ((Generic::getInstance().pUtx - Generic::getInstance().pUrx) /
+						ceil(Generic::getInstance().ttimeout / Generic::getInstance().timeSlot))) ) ) ) );
+		 */
+
+	case UavDistributed::READING:
+		uav->cn->u->residual_energy -= Generic::getInstance().singleMotorPowerUAV * 4.0 * Generic::getInstance().timeSlot;
+
+		sn = *(uav->activeTSP.begin());
+
+		sn->commTimeSlots++;
+		if(sn->commTimeSlots >= ceil(Generic::getInstance().ttimeout / Generic::getInstance().timeSlot)) {
+			xxx;
+		}
+
+		break;
+
+	case UavDistributed::RECHARGING:
+	default:
+		uav->cn->u->residual_energy += Generic::getInstance().rechargeStation_power * ((double) Generic::getInstance().timeSlot);
+		if (uav->cn->u->residual_energy >= uav->cn->u->max_energy) {
+			uav->cn->u->residual_energy = uav->cn->u->max_energy;
+
+			calculateTSP_distributed(uav, simTime);
+			if (uav->activeTSP.size() > 0) {		// IDLE but calculated TSP... let's move!
+				uav->us = UavDistributed::MOVING;
+			}
+		}
+		break;
+	}
+}
+
+void MultiFlow::calculateTSP_distributed(UavDistributed *uav, double simTime) {
 
 }
 

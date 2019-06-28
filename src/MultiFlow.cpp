@@ -336,13 +336,19 @@ SensorNode *MultiFlow::getMinLossSensor(list<SensorNode *> &sList, int texp) {
 }
 
 double MultiFlow::calculateCosts1Edge(TSP2MultiFlow *e) {
-	double ris = 0;
-	double pwu = 1;	//TODO
+	if (	((e->first->sens->id == TSP_DUMMY_CODE_START) && (e->second->sens->id == TSP_DUMMY_CODE_END)) ||
+			((e->second->sens->id == TSP_DUMMY_CODE_START) && (e->first->sens->id == TSP_DUMMY_CODE_END)) ){
+		return (-1);
+	}
+	else {
+		double ris = 0;
+		double pwu = 1;	//TODO
 
-	ris += calcEnergyToTravel(e->first->sens->coord, e->second->sens->coord);	//time to travel
-	ris += calcEnergyToWuData(pwu);	//time to wake-up
+		ris += calcEnergyToTravel(e->first->sens->coord, e->second->sens->coord);	//time to travel
+		ris += calcEnergyToWuData(pwu);	//time to wake-up
 
-	return ris;
+		return ris;
+	}
 }
 
 double MultiFlow::calculateCosts1Edge(SensorNode *s1, SensorNode *s2) {
@@ -1168,6 +1174,13 @@ double MultiFlow::calcIndex(void) {
 void MultiFlow::run_distributed(double end_time) {
 	double sim_time = 0;
 
+	cout << "Initializing simulation" << endl << flush;
+/*
+	for (auto& s : sens_list) {
+		cout << "  S->" << s->sens->id << endl << flush;
+	}
+	cout << "End check sens_list" << endl << flush;
+*/
 	//init uavs
 	for (auto& uav : uav_list) {
 		for (auto& s : sens_list) {
@@ -1180,21 +1193,68 @@ void MultiFlow::run_distributed(double end_time) {
 
 		uav->us = UavDistributed::RECHARGING;
 	}
+/*
+	for (auto& uav : uav_list) {
+		cout << "  UAV->" << uav->cn->u->id << flush;
+		for (auto& s : sens_list) {
+			cout << " S:" << s->sens->id << flush;
+		}
+		cout << endl << flush;
+
+		cout << "  UAV->" << uav->cn->u->id << flush;
+		for (auto& s : uav->sensMap) {
+			cout << " S:" << s.second.sens->sens->id << flush;
+		}
+		cout << endl << flush;
+	}
+	cout << "End check UAVs" << endl << flush;
+*/
 
 	//init wuVal	//TODO
 	wuVal.estimatedIrrEnergyPerSlot_uJ = 0.1;
 	wuVal.maxTwakeup = 10;
 	wuVal.h = 5;
+	wuVal.commProb = 0.9;
+
+	cout << "Starting simulation" << endl << flush;
 
 	while(sim_time <= end_time) {
 
+		//cout << "Updating NeighMaps" << endl << flush;
 		updateNeighMaps(sim_time);
 
+		/*
 		for (auto& uav : uav_list) {
+			cout << "  UAV->" << uav->cn->u->id << flush;
+			for (auto& s : sens_list) {
+				cout << " S:" << s->sens->id << flush;
+			}
+			cout << endl << flush;
+
+			cout << "  UAV->" << uav->cn->u->id << flush;
+			for (auto& s : uav->sensMap) {
+				cout << " S:" << s.second.sens->sens->id << flush;
+			}
+			cout << endl << flush;
+		}
+		cout << "End check UAVs AFTER updateNeighMaps" << endl << flush;
+		*/
+
+
+
+		for (auto& uav : uav_list) {
+			//cout << "Running UAV " << uav->cn->u->id << endl << flush;
 			run_uav(uav, sim_time);
 		}
 
+		// remove self-discharge energy from sensors
+		//cout << "Removing self-discharge energy from sensors" << endl << flush;
+		for (auto& s : sens_list) {
+			s->sens->residual_energy -= calcPowEtaSens(s->sens->residual_energy, Generic::getInstance().timeSlot);
+		}
+
 		sim_time += Generic::getInstance().timeSlot;
+		cout << "Sim-Time: "<< sim_time << endl << flush;
 	}
 
 	cerr << "Simulation FINISHED!!!" << endl;
@@ -1237,6 +1297,8 @@ void MultiFlow::updateNeighMaps(double timenow) {
 
 void MultiFlow::run_uav(UavDistributed *uav, double simTime) {
 	SensorNode *sn;
+
+	//cout << "  Inside UAV " << uav->cn->u->id << " START" << endl << flush;
 
 	switch (uav->us) {
 	case UavDistributed::MOVING:
@@ -1324,12 +1386,6 @@ void MultiFlow::run_uav(UavDistributed *uav, double simTime) {
 			uav->us = UavDistributed::READING;
 		}
 		break;
-		/*
-
-		(Generic::getInstance().ttimeout * Generic::getInstance().nr *
-				(Generic::getInstance().pUrx + ((Generic::getInstance().pUtx - Generic::getInstance().pUrx) /
-						ceil(Generic::getInstance().ttimeout / Generic::getInstance().timeSlot))) ) ) ) );
-		 */
 
 	case UavDistributed::READING:
 		uav->cn->u->residual_energy -= Generic::getInstance().singleMotorPowerUAV * 4.0 * Generic::getInstance().timeSlot;
@@ -1338,30 +1394,479 @@ void MultiFlow::run_uav(UavDistributed *uav, double simTime) {
 
 		sn->commTimeSlots++;
 		if(sn->commTimeSlots >= ceil(Generic::getInstance().ttimeout / Generic::getInstance().timeSlot)) {
-			xxx;
+			// ending one timeout
+			uav->cn->u->residual_energy -= (Generic::getInstance().pUrx +
+					(	(Generic::getInstance().pUtx - Generic::getInstance().pUrx) /
+						ceil(Generic::getInstance().ttimeout / Generic::getInstance().timeSlot)
+					) ) * Generic::getInstance().timeSlot;
+
+			sn->sens->residual_energy -= (Generic::getInstance().pSrx +
+					(	(Generic::getInstance().pStx - Generic::getInstance().pSrx) /
+						ceil(Generic::getInstance().ttimeout / Generic::getInstance().timeSlot)
+					) ) * Generic::getInstance().timeSlot;
+
+			sn->nCommAttempt++;
+			if (RandomGenerator::getInstance().getRealUniform(0, 1) <= wuVal.commProb) {
+				// ok successful data gathering
+
+				//read the data
+				SensorNode::SensorRead sr;
+				sr.readTime = simTime;
+				sr.uav = uav->cn->u;
+				sn->readings.push_back(sr);
+				uav->sensMap[sn->sens->id].lastTimeStamp = simTime;
+
+				//go away
+				sn->commTimeSlots = 0;
+				sn->nCommAttempt = 0;
+				uav->activeTSP.pop_front();
+				sn->irradiatingUAV = nullptr;
+				uav->us = UavDistributed::MOVING;
+			}
+			else if (sn->nCommAttempt >= Generic::getInstance().nr) {
+				// too much attempts
+				// go away
+				sn->commTimeSlots = 0;
+				sn->nCommAttempt = 0;
+				uav->activeTSP.pop_front();
+				sn->irradiatingUAV = nullptr;
+				uav->us = UavDistributed::MOVING;
+			}
+			else {
+				sn->commTimeSlots = 0;	// start new attempt
+			}
 		}
 
 		break;
 
 	case UavDistributed::RECHARGING:
 	default:
+		//cout << "  I'm recharging" << endl << flush;
 		uav->cn->u->residual_energy += Generic::getInstance().rechargeStation_power * ((double) Generic::getInstance().timeSlot);
 		if (uav->cn->u->residual_energy >= uav->cn->u->max_energy) {
 			uav->cn->u->residual_energy = uav->cn->u->max_energy;
 
-			calculateTSP_distributed(uav, simTime);
+			//cout << "  Start calculating TSP" << endl << flush;
+			calculateTSP_distributed(uav, uav->cn->pos, uav->cn->pos, simTime);
+			//cout << "  End calculating TSP" << endl << flush;
 			if (uav->activeTSP.size() > 0) {		// IDLE but calculated TSP... let's move!
 				uav->us = UavDistributed::MOVING;
 			}
 		}
 		break;
 	}
+
+	//cout << "  Inside UAV " << uav->cn->u->id << " END" << endl << flush;
 }
 
-void MultiFlow::calculateTSP_distributed(UavDistributed *uav, double simTime) {
+double MultiFlow::calcLossSensor_distributed(SensorNode *sens, UavDistributed *uav, double texp) {
+	double ris = 0;
 
+	//cout << "        Inside calcLossSensor. START" << endl << flush;
+
+	for (auto& s : uav->sensMap) {
+		if (s.second.lastTimeStamp < texp) {
+			cout << "        Inside calcLossSensor. Test dummy: " << 1 << endl << flush;
+			cout << "        Inside calcLossSensor. Test sens->sens->id: " << sens->sens->id << endl << flush;
+			cout << "        Inside calcLossSensor. Test s.second.sens->sens: " << s.second.sens->sens << endl << flush;
+			cout << "        Inside calcLossSensor. Test s.second.sens->sens->id: " << s.second.sens->sens->id << endl << flush;
+			cout << "        Inside calcLossSensor. Test lastTimeStamp: " << s.second.lastTimeStamp << endl << flush;
+
+			double actLoss = Loss::getInstance().calculate_loss_distance(sens->sens, s.second.sens->sens)
+											* Loss::getInstance().calculate_loss_time(s.second.lastTimeStamp, texp);
+
+			//cout << "        Inside calcLossSensor. Not discounted loss: " << actLoss << endl << flush;
+
+			double closestThenMe = 0;
+			double myDist = uav->cn->pos.distance(sens->sens->coord);
+			for (auto& u : uav->neighMap) {
+				if (u.second.uav->cn->pos.distance(sens->sens->coord) < myDist) {
+					closestThenMe += 1.0;
+				}
+			}
+
+			double discount = (closestThenMe + 1.0) / (((double) uav->neighMap.size()) + 1.0);
+			//cout << "        Inside calcLossSensor. Calculated discount: " << discount << endl << flush;
+
+			actLoss *= discount;
+
+			if (actLoss > ris) {
+				ris = actLoss;
+			}
+		}
+	}
+
+	//cout << "        Inside calcLossSensor. END" << endl << flush;
+
+	return ris;
 }
 
+SensorNode *MultiFlow::getMinLossSensor_distributed(UavDistributed *uav, list<SensorNode *> &sList, double texp) {
+	SensorNode *ris = nullptr;
+	double minLoss = std::numeric_limits<double>::max();
+	//double minLoss = -1000;
+	cout << "      Inside MinLossSensor. START" << endl << flush;
 
+	//cerr << "Calculating minLossSensor with Texp: " << texp << " - ";
+	for (auto& s : sList) {
+		//double actLoss = calcLossSensor(s, sens_list, texp);
+		double actLoss = calcLossSensor_distributed(s, uav, texp);
+		//cerr << "S" << s->sens->id << ":" << actLoss << " ";
+		if (actLoss < minLoss) {
+			minLoss = actLoss;
+			ris = s;
+		}
+	}
+	//cerr << " -> winner: S" << ris->sens->id << endl;
+	cout << "      Inside MinLossSensor. END" << endl << flush;
+
+	return ris;
+}
+
+void MultiFlow::calculateTSP_distributed(UavDistributed *uav, MyCoord startPoint, MyCoord endPoint, double simTime) {
+	double tsp_time = uav->cn->u->residual_energy / Generic::getInstance().pUfly;
+	//double tsp_cost = 0;
+	list<SensorNode *> sens_check;
+	list<SensorNode *> actTSP;
+
+	//cout << "    Inside TSP for UAV " << uav->cn->u->id << " START" << endl << flush;
+
+	//uav->activeTSP.clear();
+
+	for (auto& s : sens_list) {
+		sens_check.push_back(s);
+	}
+
+	while (!sens_check.empty()) {
+		list<SensorNode *> newTSP;
+		double energy_cost = std::numeric_limits<double>::max();
+		double t_time_tmp = 0;
+
+		double t_exp = simTime + (tsp_time / 2.0);
+		//cout << "    Inside TSP. Calculating minLossSensor with expected time " << t_exp << endl << flush;
+		SensorNode *sj = getMinLossSensor_distributed(uav, sens_check, t_exp);
+		//cout << "    Inside TSP. Calculated minLossSensor: S" << sj->sens->id << endl << flush;
+		//SensorNode *sj = getMinLossSensor(sens_check, t_exp);
+
+		/*cerr << "Calculating TSP with U" << leftmost->u->id << " ";
+		for(auto& s : actTSP) {
+			cerr << "S" << s->sens->id << " ";
+		}
+		cerr << "NS" << sj->sens->id << " ";
+		cerr << endl;*/
+
+
+		/*cout << "    !!!Check UAVs 1" << endl << flush;
+		for (auto& uav : uav_list) {
+			cout << "      UAV->" << uav->cn->u->id << flush;
+			for (auto& s : sens_list) {
+				cout << " S:" << s->sens->id << flush;
+			}
+			cout << endl << flush;
+
+			cout << "      UAV->" << uav->cn->u->id << flush;
+			for (auto& s : uav->sensMap) {
+				cout << " S:" << s.second.sens->sens->id << flush;
+			}
+			cout << endl << flush;
+		}
+		cout << "    End check UAVs 1" << endl << flush;*/
+
+		calculateTSP_incremental_distributed(newTSP, actTSP, sj, startPoint, endPoint, t_time_tmp, energy_cost);
+
+
+		/*cout << "    !!!Check UAVs 2" << endl << flush;
+		for (auto& uav : uav_list) {
+			cout << "      UAV->" << uav->cn->u->id << flush;
+			for (auto& s : sens_list) {
+				cout << " S:" << s->sens->id << flush;
+			}
+			cout << endl << flush;
+
+			cout << "      UAV->" << uav->cn->u->id << flush;
+			for (auto& s : uav->sensMap) {
+				cout << " S:" << s.second.sens->sens->id << flush;
+			}
+			cout << endl << flush;
+		}
+		cout << "    End check UAVs 2" << endl << flush;*/
+
+		if (energy_cost <= uav->cn->u->residual_energy) {//Generic::getInstance().initUAVEnergy) {
+			actTSP.clear();
+			for (auto& s : newTSP) {
+				actTSP.push_back(s);
+			}
+			tsp_time = t_time_tmp;
+			//tsp_cost = t_cost;
+
+			/*cerr << "Calculated NEW TSP: " << endl << "C" << leftmost->u->id << " ";
+			for (auto& s : newTSP) {
+				cerr << "S" << s->sens->id << " ";
+			}
+			cerr << "C" << leftmost->u->id << " ";
+			cerr << "- with time cost " << t_time_tmp
+					<< " and with energy cost " << energy_cost
+					<< " having energy " << leftmost->u->residual_energy
+					<< endl << endl;*/
+		}
+
+		sens_check.remove(sj);
+	}
+
+	cerr << "Final TSP: " << "B" << startPoint << " ";
+	for (auto& s : actTSP) {
+		cerr << "S" << s->sens->id << " ";
+	}
+	cerr << "E" << endPoint << " with TSP-time of " << tsp_time << endl;
+
+	for (auto& s : actTSP) {
+		uav->activeTSP.push_back(s);
+	}
+
+	//activateTSPandRecharge(leftmost, actTSP);
+	//cout << "    Inside TSP for UAV " << uav->cn->u->id << " END" << endl << flush;
+}
+
+void MultiFlow::calculateTSP_incremental_distributed(list<SensorNode *> &newTSP, list<SensorNode *> &actTSP,
+			SensorNode *sj, MyCoord startPoint, MyCoord endPoint, double &tsp_time, double &tsp_energy_cost) {
+	double pwu = 1; //TODO
+
+	if (actTSP.empty()) {
+		newTSP.push_back(sj);
+		tsp_time = calcTimeToTravel(startPoint, sj->sens->coord) + calcTimeToTravel(sj->sens->coord, endPoint);
+		tsp_energy_cost = 	calcEnergyToTravel(startPoint, sj->sens->coord) +
+				calcEnergyToWuData(pwu) +
+				calcEnergyToTravel(sj->sens->coord, endPoint);
+	}
+	else {
+		Sensor *uavDummySensorStart = new Sensor(startPoint, 1, TSP_DUMMY_CODE_START);
+		Sensor *uavDummySensorEnd = new Sensor(endPoint, 1, TSP_DUMMY_CODE_END);
+		SensorNode uavDummySensorNodeStart;
+		SensorNode uavDummySensorNodeEnd;
+		list<SensorNode *> allSens;
+		list<TSP2MultiFlow *> edges;
+		list<TSP2MultiFlow *> finaledges;
+		list<TSP2MultiFlow *> finalcircuit;
+
+		uavDummySensorNodeStart.sens = uavDummySensorStart;
+		uavDummySensorNodeStart.lastTimestamp = tsp_time;
+		uavDummySensorNodeEnd.sens = uavDummySensorEnd;
+		uavDummySensorNodeEnd.lastTimestamp = tsp_time;
+
+		for (auto& s : actTSP) {
+			allSens.push_back(s);
+		}
+		allSens.push_back(sj);
+		allSens.push_back(&uavDummySensorNodeStart);
+		allSens.push_back(&uavDummySensorNodeEnd);
+
+		auto it1 = allSens.begin();
+		while (it1 != allSens.end()) {
+			auto it2 = it1;
+			it2++;
+			while (it2 != allSens.end()) {
+				//double t;
+				TSP2MultiFlow *ne = new TSP2MultiFlow(*it1, *it2, 0);
+
+				ne->weight = calculateCosts1Edge(ne);
+				edges.push_back(ne);
+
+				it2++;
+			}
+			it1++;
+		}
+		edges.sort(TSP2MultiFlow::sortEdges);
+
+		int idFinal = 0;
+		for (auto& e : edges) {
+			//check if the sensors in the edge are already caught
+			int connected_first = 0;
+			int connected_second = 0;
+			int idFirst = -1;
+			int idSecond = -2;
+
+			for (auto& fe : finaledges) {
+				if ((e->first->sens->id == fe->first->sens->id) || (e->first->sens->id == fe->second->sens->id)) {
+					connected_first++;
+					idFirst = fe->idTSP;
+				}
+				if ((e->second->sens->id == fe->first->sens->id) || (e->second->sens->id == fe->second->sens->id)) {
+					connected_second++;
+					idSecond = fe->idTSP;
+				}
+			}
+
+			/*cout << "Checking S" << e->first->id << "-S" << e->second->id << "."
+						<< " ConnFirst: " << connected_first << " ConnSecond: " << connected_second
+						<< " idFirst: " << idFirst << " idSecond: " << idSecond
+						<< endl;*/
+
+			if ((idFirst != idSecond) && (connected_first < 2) && (connected_second < 2)) {
+				if (idFirst < 0) {
+					idFirst = idFinal++;
+				}
+				for (auto& fe : finaledges) {
+					if (fe->idTSP == idSecond) {
+						fe->idTSP = idFirst;
+					}
+				}
+				e->idTSP = idFirst;
+				finaledges.push_back(e);
+			}
+		}
+
+		// CLOSE THE CIRCUIT
+		for (auto& e : edges) {
+			int connected_first = 0;
+			int connected_second = 0;
+			for (auto& fe : finaledges) {
+				if ((e->first->sens->id == fe->first->sens->id) || (e->first->sens->id == fe->second->sens->id)) {
+					connected_first++;
+				}
+				if ((e->second->sens->id == fe->first->sens->id) || (e->second->sens->id == fe->second->sens->id)) {
+					connected_second++;
+				}
+			}
+			if ((connected_first == 1) && (connected_second == 1)) {
+				e->idTSP = finaledges.front()->idTSP;
+				finaledges.push_back(e);
+			}
+		}
+
+		SensorNode *nextS = &uavDummySensorNodeStart;
+		int counter = 500;
+		//cout << "TSP final: UAV" << cc->clusterUAV->id;
+		do {
+			//for (auto& fe : finaledges) {
+			for (auto it_fe = finaledges.begin(); it_fe != finaledges.end(); it_fe++) {
+				if (((*it_fe)->first->sens->id == nextS->sens->id) || ((*it_fe)->second->sens->id == nextS->sens->id)) {
+					if ((*it_fe)->first->sens->id == nextS->sens->id){
+						if ((nextS->sens->id == TSP_DUMMY_CODE_START) && ((*it_fe)->second->sens->id == TSP_DUMMY_CODE_END)) {
+							continue;
+						}
+						finalcircuit.push_back(new TSP2MultiFlow(nextS, (*it_fe)->second, (*it_fe)->weight));
+						nextS = (*it_fe)->second;
+					}
+					else {
+						if ((nextS->sens->id == TSP_DUMMY_CODE_END) && ((*it_fe)->second->sens->id == TSP_DUMMY_CODE_START)) {
+							continue;
+						}
+						finalcircuit.push_back(new TSP2MultiFlow(nextS, (*it_fe)->first, (*it_fe)->weight));
+						nextS = (*it_fe)->first;
+					}
+
+					//if (nextS->id != uavDummySensor->id) {
+					//cout << "-S" << nextS->id;
+					//}
+					finaledges.erase(it_fe);
+					break;
+				}
+			}
+		} while ((nextS != &uavDummySensorNodeEnd) && ((counter--) > 0));
+
+		if (counter == 0) {
+			cerr << "ERRORE" << endl;
+			exit(EXIT_FAILURE);
+		}
+
+		bool swapMade = false;
+		int round = 50;
+		do {
+			swapMade = false;
+			for (auto it_fe1 = finalcircuit.begin(); it_fe1 != finalcircuit.end(); it_fe1++){
+				auto fe1 = *it_fe1;
+
+				auto it_fe2 = it_fe1;
+				if (it_fe2 != finalcircuit.end()) it_fe2++;
+				if (it_fe2 != finalcircuit.end()) it_fe2++; //make 2-steps ahead
+
+				for (; it_fe2 != finalcircuit.end(); it_fe2++){
+					auto fe2 = *it_fe2;
+					if (fe1->second->sens->id != fe2->first->sens->id){
+						//double sumActCost = fe1->first->sens->coord.distance(fe1->second->sens->coord) + fe2->first->sens->coord.distance(fe2->second->sens->coord);
+						double sumActCost = calculateCosts1Edge(fe1->first, fe1->second) + calculateCosts1Edge(fe2->first, fe2->second);
+						//double sumSwitch = fe1->first->sens->coord.distance(fe2->first->sens->coord) + fe1->second->sens->coord.distance(fe2->second->sens->coord);
+						double sumSwitch = calculateCosts1Edge(fe1->first, fe2->first) + calculateCosts1Edge(fe1->second, fe2->second);
+						if (sumSwitch < sumActCost) {
+							list<TSP2MultiFlow *> tmpcircuit;
+							SensorNode *tmp;
+
+							//cout << endl << "TEMP CIRCUIT BEFORE: ";
+							//for (auto& fe : finalcircuit) cout << " S" << fe->first->id << "-S" << fe->second->id;
+							//cout << endl;
+							//cout << "Swapping S" << fe1->first->id << "-S" << fe1->second->id << " with S" << fe2->first->id << "-S" << fe2->second->id << endl;
+
+							auto it_feSwitch = it_fe1;
+							it_feSwitch++;
+							while ((*it_feSwitch)->second->sens->id != (*it_fe2)->second->sens->id){
+								tmp = (*it_feSwitch)->second;
+								(*it_feSwitch)->second = (*it_feSwitch)->first;
+								(*it_feSwitch)->first = tmp;
+
+								it_feSwitch++;
+							}
+
+							tmp = fe1->second;
+							fe1->second = fe2->first;
+							//fe1->weight = fe1->first->sens->coord.distance(fe1->second->sens->coord);
+							fe1->weight = calculateCosts1Edge(fe1->first, fe1->second);
+
+							fe2->first = tmp;
+							//fe2->weight = fe2->first->sens->coord.distance(fe2->second->sens->coord);
+							fe2->weight = calculateCosts1Edge(fe2->first, fe2->second);
+
+							auto it_b = it_fe1; it_b++;
+							auto it_e = it_fe2; //it_e--;
+							reverse(it_b,  it_e);
+
+							//cout << "TEMP CIRCUIT AFTER : ";
+							//for (auto& fe : finalcircuit) cout << " S" << fe->first->id << "-S" << fe->second->id;
+							//cout << endl << endl;
+
+							swapMade = true;
+						}
+					}
+
+					if (swapMade) break;
+				}
+				if (swapMade) break;
+			}
+
+			//if (swapMade) cout << "SWAP-MADE" << endl;
+			//else cout << "NO SWAP-MADE" << endl;
+
+		} while (swapMade && ((round--) > 0));
+
+		//cout << " FINAL CIRCUIT2: ";
+		tsp_time = 0;
+		tsp_energy_cost = 0;
+		for (auto& fe : finalcircuit) {
+			//fCircuit.push_back(fe);
+			if ((fe->second->sens->id != TSP_DUMMY_CODE_START) && (fe->second->sens->id != TSP_DUMMY_CODE_END)) {
+				newTSP.push_back(fe->second);
+
+				tsp_time += calcTimeToWuData();
+				tsp_energy_cost += calcEnergyToWuData(pwu);
+			}
+			tsp_time += calcTimeToTravel(fe->first->sens->coord, fe->second->sens->coord);
+			tsp_energy_cost += calcEnergyToTravel(fe->first->sens->coord, fe->second->sens->coord);
+
+			//cout << " S" << fe->first->id << "-S" << fe->second->id;
+		}
+		//cout << endl;
+
+		for (auto& ef : edges) free(ef);
+		edges.clear();
+
+		for (auto& ff : finaledges) free(ff);
+		finaledges.clear();
+
+		for (auto& ff : finalcircuit) free(ff);
+		finalcircuit.clear();
+
+		free(uavDummySensorStart);
+		free(uavDummySensorEnd);
+	}
+}
 
 

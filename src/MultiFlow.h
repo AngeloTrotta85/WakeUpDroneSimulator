@@ -20,6 +20,13 @@
 #define TSP_UAV_CODE 100000
 #endif
 
+#ifndef TSP_DUMMY_CODE_START
+#define TSP_DUMMY_CODE_START 200000
+#endif
+#ifndef TSP_DUMMY_CODE_END
+#define TSP_DUMMY_CODE_END 200001
+#endif
+
 using namespace std;
 
 class ChargingNode {
@@ -105,6 +112,7 @@ public:
 		double h;
 		double estimatedIrrEnergyPerSlot_uJ;
 		double maxTwakeup;
+		double commProb;
 	} wakeupVal;
 
 public:
@@ -144,11 +152,15 @@ public:
 	void activateTSPandRecharge(ChargingNode *cnode, list<SensorNode *> &tsp);
 	double calcLossSensor(SensorNode *s_check, list<SensorNode *> &sList, int texp);
 	double calcLossSensorPresentFuture(SensorNode *s_check, std::list<SensorNode *> &sList, int texp);
+	double calcLossSensor_distributed(SensorNode *sens, UavDistributed *uav, double texp);
 	SensorNode *getMinLossSensor(list<SensorNode *> &sList, int texp);
+	SensorNode *getMinLossSensor_distributed(UavDistributed *uav, list<SensorNode *> &sList, double texp);
 	double calculateCosts1Edge(TSP2MultiFlow *e);
 	double calculateCosts1Edge(SensorNode *s1, SensorNode *s2);
 	void calculateTSP_incremental(list<SensorNode *> &newTSP, list<SensorNode *> &actTSP,
 			SensorNode *sj, ChargingNode *cnode, double &tsp_time, double &tsp_energy_cost);
+	void calculateTSP_incremental_distributed(list<SensorNode *> &newTSP, list<SensorNode *> &actTSP,
+			SensorNode *sj, MyCoord startPoint, MyCoord endPoint, double &tsp_time, double &tsp_energy_cost);
 	void calculateTSP_and_UpdateMF(ChargingNode *leftmost);
 
 	double calcPowEta(int t);
@@ -158,7 +170,7 @@ public:
 	void run_uav(UavDistributed *uav, double simTime) ;
 	void updateNeighMaps(double timenow);
 
-	void calculateTSP_distributed(UavDistributed *uav, double simTime);
+	void calculateTSP_distributed(UavDistributed *uav, MyCoord startPoint, MyCoord endPoint, double simTime);
 
 public:
 	void initEfficiencyMap(void);

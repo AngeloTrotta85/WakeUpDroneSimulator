@@ -171,6 +171,7 @@ public:
 	void updateNeighMaps(double timenow);
 
 	void calculateTSP_distributed(UavDistributed *uav, MyCoord startPoint, MyCoord endPoint, double simTime);
+	void calculateTSP_distributed_dummy(UavDistributed *uav, MyCoord startPoint, MyCoord endPoint, double simTime);
 
 public:
 	void initEfficiencyMap(void);

@@ -103,6 +103,8 @@ public:
 
 	list<SensorNode *> activeTSP;
 
+	bool tsp2update;
+
 	uavState us;
 };
 
@@ -184,6 +186,9 @@ public:
 
 	double getLastSensorRead(void);
 	double calcIndex(void);
+
+	void writeHitmaps_distr(std::string filename);
+	void writeHitmaps_multiflow(std::string filename);
 
 private:
 	map<int, ChargingNode *> cs_map;

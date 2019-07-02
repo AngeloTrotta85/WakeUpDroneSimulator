@@ -639,6 +639,17 @@ void Simulator::finish_multiflow(std::vector<CoordCluster *> &clustVec, std::lis
 
 		}
 	}
+
+	if (!Generic::getInstance().hitmapFilename.empty()) {
+		/*std::ofstream ofs (Generic::getInstance().hitmapFilename, std::ofstream::out);
+		if (ofs.is_open()) {
+			for (auto& s : sensList) {
+				ofs << s->id << " " << s->coord.x << " " << s->coord.y << " " << s->mySensorReadings.size() << endl;
+			}
+			ofs.close();
+		}*/
+		mf->writeHitmaps_multiflow(Generic::getInstance().hitmapFilename);
+	}
 }
 
 
@@ -686,6 +697,17 @@ void Simulator::finish_distributed(std::vector<CoordCluster *> &clustVec, std::l
 			ofs << "FINISH Index " << index << endl;
 
 		}
+	}
+
+	if (!Generic::getInstance().hitmapFilename.empty()) {
+		/*std::ofstream ofs (Generic::getInstance().hitmapFilename, std::ofstream::out);
+		if (ofs.is_open()) {
+			for (auto& s : sensList) {
+				ofs << s->id << " " << s->coord.x << " " << s->coord.y << " " << s->mySensorReadings.size() << endl;
+			}
+			ofs.close();
+		}*/
+		mf->writeHitmaps_distr(Generic::getInstance().hitmapFilename);
 	}
 }
 

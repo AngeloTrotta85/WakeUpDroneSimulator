@@ -581,7 +581,7 @@ void MultiFlow::calculateTSP_incremental(list<SensorNode *> &newTSP, list<Sensor
 		for (auto& ef : edges) free(ef);
 		edges.clear();
 
-		for (auto& ff : finaledges) free(ff);
+		//for (auto& ff : finaledges) free(ff);
 		finaledges.clear();
 
 		for (auto& ff : finalcircuit) free(ff);
@@ -1190,6 +1190,7 @@ void MultiFlow::run_distributed(double end_time) {
 		}
 
 		uav->us = UavDistributed::RECHARGING;
+		uav->tsp2update = false;
 	}
 
 	//init wuVal	//TODO
@@ -1221,8 +1222,8 @@ void MultiFlow::run_distributed(double end_time) {
 			}
 		}
 
-		sim_time += Generic::getInstance().timeSlot;
 		cout << "Sim-Time: "<< sim_time << endl << flush;
+		sim_time += Generic::getInstance().timeSlot;
 	}
 
 	cerr << "Simulation FINISHED!!!" << endl;
@@ -1230,12 +1231,15 @@ void MultiFlow::run_distributed(double end_time) {
 
 void MultiFlow::updateNeighMaps(double timenow) {
 	for (auto& u1 : uav_list) {
+		bool toUpdate = false;
+
 		for (auto& u2 : uav_list) {
 			if (u1->cn->id != u2->cn->id) {
 				if (u1->cn->u->actual_coord.distance(u2->cn->u->actual_coord) <= Generic::getInstance().uavComRange) {
-					//update negh map
+					//update neigh map
 					if (u1->neighMap.count(u2->cn->id) == 0) {
 						u1->neighMap[u2->cn->id].uav = u2;
+						toUpdate = true;
 					}
 					u1->neighMap[u2->cn->id].lastTimeStamp = timenow;
 
@@ -1243,6 +1247,7 @@ void MultiFlow::updateNeighMaps(double timenow) {
 					for (auto& s2 : u2->sensMap) {
 						if (s2.second.lastTimeStamp > u1->sensMap[s2.first].lastTimeStamp) {
 							u1->sensMap[s2.first].lastTimeStamp = s2.second.lastTimeStamp;
+							toUpdate = true;
 						}
 					}
 				}
@@ -1251,10 +1256,15 @@ void MultiFlow::updateNeighMaps(double timenow) {
 						if ((timenow - u1->neighMap[u2->cn->id].lastTimeStamp) > Generic::getInstance().neighUAVTimeout) {
 							//u1->sensMap.erase(u2->cn->id);
 							u1->neighMap.erase(u2->cn->id);
+							toUpdate = true;
 						}
 					}
 				}
 			}
+		}
+
+		if (toUpdate) {
+			u1->tsp2update = true;
 		}
 	}
 }
@@ -1264,13 +1274,13 @@ void MultiFlow::run_uav(UavDistributed *uav, double simTime) {
 
 	switch (uav->us) {
 	case UavDistributed::MOVING:
-		cout << "UAV " << uav->cn->u->id << " is in state MOVING" << endl << flush;
+		//cout << "UAV " << uav->cn->u->id << " is in state MOVING" << endl << flush;
 		uav->cn->u->residual_energy -= Generic::getInstance().singleMotorPowerUAV * 4.0 * Generic::getInstance().timeSlot;
 		if ((uav->activeTSP.size() == 0) && (uav->cn->u->actual_coord == uav->cn->pos)) {
 			//arrived back to the charging station
 			uav->cn->u->actual_coord = uav->cn->pos;	// set the exact position due to possible numerical error
 			uav->us = UavDistributed::RECHARGING;
-			cout << "UAV " << uav->cn->u->id << " moving on state RECHARGING" << endl << flush;
+			//cout << "UAV " << uav->cn->u->id << " moving on state RECHARGING" << endl << flush;
 		}
 		else if ((uav->activeTSP.size() > 0) && (uav->cn->u->actual_coord == (*(uav->activeTSP.begin()))->sens->coord)) {
 			//arrived to destination sensor
@@ -1282,7 +1292,7 @@ void MultiFlow::run_uav(UavDistributed *uav, double simTime) {
 				sn->irradiatingTimeSlots = 0;
 				sn->accumulatedEnergy_uJ = 0;
 				uav->us = UavDistributed::WAKINGUP;
-				cout << "UAV " << uav->cn->u->id << " moving on state WAKINGUP" << endl << flush;
+				//cout << "UAV " << uav->cn->u->id << " moving on state WAKINGUP" << endl << flush;
 			}
 			else {
 				// the sensor is being used by another UAV. Go to the next
@@ -1291,6 +1301,12 @@ void MultiFlow::run_uav(UavDistributed *uav, double simTime) {
 		}
 		else {
 			MyCoord endP;
+
+			if (uav->tsp2update) {
+				calculateTSP_distributed(uav, uav->cn->u->actual_coord, uav->cn->pos, simTime);
+				uav->tsp2update = false;
+			}
+
 			if (uav->activeTSP.size() == 0) endP = uav->cn->pos;
 			else endP = (*(uav->activeTSP.begin()))->sens->coord;
 
@@ -1310,7 +1326,7 @@ void MultiFlow::run_uav(UavDistributed *uav, double simTime) {
 		break;
 
 	case UavDistributed::WAKINGUP:
-		cout << "UAV " << uav->cn->u->id << " is in state WAKINGUP" << endl << flush;
+		//cout << "UAV " << uav->cn->u->id << " is in state WAKINGUP" << endl << flush;
 		uav->cn->u->residual_energy -= Generic::getInstance().singleMotorPowerUAV * 4.0 * Generic::getInstance().timeSlot;
 		uav->cn->u->residual_energy -= Generic::getInstance().wakeupTxPower * Generic::getInstance().timeSlot;
 
@@ -1327,7 +1343,7 @@ void MultiFlow::run_uav(UavDistributed *uav, double simTime) {
 			if (sn->accumulatedEnergy_uJ >= Generic::getInstance().energyToWakeUp) {
 				// OK the sensor wakes-up
 				uav->us = UavDistributed::STARTINGUP;
-				cout << "UAV " << uav->cn->u->id << " moving on state STARTINGUP" << endl << flush;
+				//cout << "UAV " << uav->cn->u->id << " moving on state STARTINGUP" << endl << flush;
 				sn->startupTimeSlots = 0;
 			}
 			else if(sn->irradiatingTimeSlots >= ceil(wuVal.maxTwakeup / Generic::getInstance().timeSlot)) {
@@ -1335,7 +1351,7 @@ void MultiFlow::run_uav(UavDistributed *uav, double simTime) {
 				uav->activeTSP.pop_front();
 				sn->irradiatingUAV = nullptr;
 				uav->us = UavDistributed::MOVING;
-				cout << "UAV " << uav->cn->u->id << " moving on state MOVING" << endl << flush;
+				//cout << "UAV " << uav->cn->u->id << " moving on state MOVING" << endl << flush;
 			}
 		}
 		else {
@@ -1344,7 +1360,7 @@ void MultiFlow::run_uav(UavDistributed *uav, double simTime) {
 		break;
 
 	case UavDistributed::STARTINGUP:
-		cout << "UAV " << uav->cn->u->id << " is in state STARTINGUP" << endl << flush;
+		//cout << "UAV " << uav->cn->u->id << " is in state STARTINGUP" << endl << flush;
 		uav->cn->u->residual_energy -= Generic::getInstance().singleMotorPowerUAV * 4.0 * Generic::getInstance().timeSlot;
 		uav->cn->u->residual_energy -= Generic::getInstance().pUstartup * Generic::getInstance().timeSlot;
 
@@ -1361,12 +1377,12 @@ void MultiFlow::run_uav(UavDistributed *uav, double simTime) {
 			sn->commTimeSlots = 0;
 			sn->nCommAttempt = 0;
 			uav->us = UavDistributed::READING;
-			cout << "UAV " << uav->cn->u->id << " moving on state READING" << endl << flush;
+			//cout << "UAV " << uav->cn->u->id << " moving on state READING" << endl << flush;
 		}
 		break;
 
 	case UavDistributed::READING:
-		cout << "UAV " << uav->cn->u->id << " is in state READING" << endl << flush;
+		//cout << "UAV " << uav->cn->u->id << " is in state READING" << endl << flush;
 		uav->cn->u->residual_energy -= Generic::getInstance().singleMotorPowerUAV * 4.0 * Generic::getInstance().timeSlot;
 
 		if (uav->activeTSP.empty()){
@@ -1405,7 +1421,7 @@ void MultiFlow::run_uav(UavDistributed *uav, double simTime) {
 				uav->activeTSP.pop_front();
 				sn->irradiatingUAV = nullptr;
 				uav->us = UavDistributed::MOVING;
-				cout << "UAV " << uav->cn->u->id << " moving on state MOVING" << endl << flush;
+				//cout << "UAV " << uav->cn->u->id << " moving on state MOVING" << endl << flush;
 			}
 			else if (sn->nCommAttempt >= Generic::getInstance().nr) {
 				// too much attempts
@@ -1415,7 +1431,7 @@ void MultiFlow::run_uav(UavDistributed *uav, double simTime) {
 				uav->activeTSP.pop_front();
 				sn->irradiatingUAV = nullptr;
 				uav->us = UavDistributed::MOVING;
-				cout << "UAV " << uav->cn->u->id << " moving on state MOVING" << endl << flush;
+				//cout << "UAV " << uav->cn->u->id << " moving on state MOVING" << endl << flush;
 			}
 			else {
 				sn->commTimeSlots = 0;	// start new attempt
@@ -1426,19 +1442,19 @@ void MultiFlow::run_uav(UavDistributed *uav, double simTime) {
 
 	case UavDistributed::RECHARGING:
 	default:
-		cout << "UAV " << uav->cn->u->id << " is in state RECHARGING" << endl << flush;
+		//cout << "UAV " << uav->cn->u->id << " is in state RECHARGING" << endl << flush;
 		//cout << "  I'm recharging" << endl << flush;
 		uav->cn->u->residual_energy += Generic::getInstance().rechargeStation_power * ((double) Generic::getInstance().timeSlot);
 		if (uav->cn->u->residual_energy >= uav->cn->u->max_energy) {
 			uav->cn->u->residual_energy = uav->cn->u->max_energy;
 
 			//cout << "  Start calculating TSP" << endl << flush;
-			calculateTSP_distributed(uav, uav->cn->pos, uav->cn->pos, simTime);  //TODO
+			calculateTSP_distributed(uav, uav->cn->pos, uav->cn->pos, simTime);
 			//calculateTSP_distributed_dummy(uav, uav->cn->pos, uav->cn->pos, simTime);
 			//cout << "  End calculating TSP" << endl << flush;
 			if (uav->activeTSP.size() > 0) {		// IDLE but calculated TSP... let's move!
 				uav->us = UavDistributed::MOVING;
-				cout << "UAV " << uav->cn->u->id << " moving on state MOVING" << endl << flush;
+				//cout << "UAV " << uav->cn->u->id << " moving on state MOVING" << endl << flush;
 			}
 		}
 		break;
@@ -1454,11 +1470,6 @@ double MultiFlow::calcLossSensor_distributed(SensorNode *sens, UavDistributed *u
 
 	for (auto& s : uav->sensMap) {
 		if (s.second.lastTimeStamp < texp) {
-			//cout << "        Inside calcLossSensor. Test dummy: " << 1 << endl << flush;
-			//cout << "        Inside calcLossSensor. Test sens->sens->id: " << sens->sens->id << endl << flush;
-			//cout << "        Inside calcLossSensor. Test s.second.sens->sens: " << s.second.sens->sens << endl << flush;
-			//cout << "        Inside calcLossSensor. Test s.second.sens->sens->id: " << s.second.sens->sens->id << endl << flush;
-			//cout << "        Inside calcLossSensor. Test lastTimeStamp: " << s.second.lastTimeStamp << endl << flush;
 
 			double actLoss = Loss::getInstance().calculate_loss_distance(sens->sens, s.second.sens->sens)
 											* Loss::getInstance().calculate_loss_time(s.second.lastTimeStamp, texp);
@@ -1545,22 +1556,6 @@ void MultiFlow::calculateTSP_distributed(UavDistributed *uav, MyCoord startPoint
 		double energy_cost = std::numeric_limits<double>::max();
 		double t_time_tmp = 0;
 
-		cout << "    !!!Check UAVs 0" << endl << flush;
-		for (auto& uav : uav_list) {
-			cout << "      UAV->" << uav->cn->u->id << flush;
-			for (auto& s : sens_list) {
-				cout << " S:" << s->sens->id << flush;
-			}
-			cout << endl << flush;
-
-			cout << "      UAV->" << uav->cn->u->id << flush;
-			for (auto& s : uav->sensMap) {
-				cout << " S:" << s.second.sens->sens->id << flush;
-			}
-			cout << endl << flush;
-		}
-		cout << "    End check UAVs 0" << endl << flush;
-
 		double t_exp = simTime + (tsp_time / 2.0);
 		//cout << "    Inside TSP. Calculating minLossSensor with expected time " << t_exp << endl << flush;
 		SensorNode *sj = getMinLossSensor_distributed(uav, sens_check, t_exp);
@@ -1574,41 +1569,7 @@ void MultiFlow::calculateTSP_distributed(UavDistributed *uav, MyCoord startPoint
 		cerr << "NS" << sj->sens->id << " ";
 		cerr << endl;*/
 
-
-		cout << "    !!!Check UAVs 1" << endl << flush;
-		for (auto& uav : uav_list) {
-			cout << "      UAV->" << uav->cn->u->id << flush;
-			for (auto& s : sens_list) {
-				cout << " S:" << s->sens->id << flush;
-			}
-			cout << endl << flush;
-
-			cout << "      UAV->" << uav->cn->u->id << flush;
-			for (auto& s : uav->sensMap) {
-				cout << " S:" << s.second.sens->sens->id << flush;
-			}
-			cout << endl << flush;
-		}
-		cout << "    End check UAVs 1" << endl << flush;
-
 		calculateTSP_incremental_distributed(newTSP, actTSP, sj, startPoint, endPoint, t_time_tmp, energy_cost);
-
-
-		cout << "    !!!Check UAVs 2" << endl << flush;
-		for (auto& uav : uav_list) {
-			cout << "      UAV->" << uav->cn->u->id << flush;
-			for (auto& s : sens_list) {
-				cout << " S:" << s->sens->id << flush;
-			}
-			cout << endl << flush;
-
-			cout << "      UAV->" << uav->cn->u->id << flush;
-			for (auto& s : uav->sensMap) {
-				cout << " S:" << s.second.sens->sens->id << flush;
-			}
-			cout << endl << flush;
-		}
-		cout << "    End check UAVs 2" << endl << flush;
 
 		if (energy_cost <= uav->cn->u->residual_energy) {//Generic::getInstance().initUAVEnergy) {
 			actTSP.clear();
@@ -1874,18 +1835,88 @@ void MultiFlow::calculateTSP_incremental_distributed(list<SensorNode *> &newTSP,
 		}
 		//cout << endl;
 
-		/*for (auto& ef : edges) free(ef);
+		for (auto& ef : edges) free(ef);
 		edges.clear();
 
-		for (auto& ff : finaledges) free(ff);
+		//for (auto& ff : finaledges) free(ff);
 		finaledges.clear();
 
 		for (auto& ff : finalcircuit) free(ff);
 		finalcircuit.clear();
 
 		free(uavDummySensorStart);
-		free(uavDummySensorEnd);*/
+		free(uavDummySensorEnd);
 	}
 }
+
+
+void MultiFlow::writeHitmaps_distr(std::string filename) {
+
+	// all in one
+	std::string allHit = Generic::getInstance().hitmapFilename + ".log";
+	std::ofstream ofs (allHit, std::ofstream::out);
+	if (ofs.is_open()) {
+		for (auto& s : sens_list) {
+			ofs << s->sens->id << " " << s->sens->coord.x << " " << s->sens->coord.y << " " << s->readings.size() << endl;
+		}
+		ofs.close();
+	}
+
+	// single for each UAV
+	for (auto& u : uav_list) {
+		std::string allHit = Generic::getInstance().hitmapFilename + "_U" + std::to_string(u->cn->u->id) + ".log";
+
+		std::ofstream ofs_single (allHit, std::ofstream::out);
+		if (ofs_single.is_open()) {
+			for (auto& s : sens_list) {
+				int sumReadUAV = 0;
+				for(auto& r : s->readings) {
+					if (r.uav->id == u->cn->u->id) {
+						++sumReadUAV;
+					}
+				}
+				ofs_single << s->sens->id << " " << s->sens->coord.x << " " << s->sens->coord.y << " " << sumReadUAV << endl;
+			}
+			ofs_single.close();
+		}
+	}
+}
+
+
+void MultiFlow::writeHitmaps_multiflow(std::string filename) {
+
+	// all in one
+	std::string allHit = Generic::getInstance().hitmapFilename + ".log";
+	std::ofstream ofs (allHit, std::ofstream::out);
+	if (ofs.is_open()) {
+		for (auto& s : sens_list) {
+			ofs << s->sens->id << " " << s->sens->coord.x << " " << s->sens->coord.y << " " << s->readings.size() << endl;
+		}
+		ofs.close();
+	}
+
+	// single for each UAV
+	for (auto& cnm : cs_map) {
+		ChargingNode *cn = cnm.second;
+
+		std::string allHit = Generic::getInstance().hitmapFilename + "_U" + std::to_string(cn->u->id) + ".log";
+
+		std::ofstream ofs_single (allHit, std::ofstream::out);
+		if (ofs_single.is_open()) {
+			for (auto& s : sens_list) {
+				int sumReadUAV = 0;
+				for(auto& r : s->readings) {
+					if (r.uav->id == cn->u->id) {
+						++sumReadUAV;
+					}
+				}
+				ofs_single << s->sens->id << " " << s->sens->coord.x << " " << s->sens->coord.y << " " << sumReadUAV << endl;
+			}
+			ofs_single.close();
+		}
+	}
+}
+
+
 
 

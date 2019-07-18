@@ -54,6 +54,7 @@ public:
 		alpha = a;
 	}
 
+	double calculate_loss_energy_only(long double e, std::list<long double> &el);
 	double calculate_loss_energy(Sensor *se, int tk, std::list<Sensor *> &sl);
 	double calculate_loss_distance(Sensor *s1, Sensor *s2);
 	double calculate_loss_time(int t1, int t2);

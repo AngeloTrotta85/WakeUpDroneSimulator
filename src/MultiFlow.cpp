@@ -22,6 +22,7 @@ void MultiFlow::addSensor(Sensor *s) {
 
 	newsn->sens = s;
 	newsn->lastTimestamp = 0;
+	newsn->lastTimestamp_tslot = 0;
 	newsn->accumulatedEnergy_uJ = 0;
 	newsn->irradiatingTimeSlots = 0;
 	newsn->startupTimeSlots = 0;
@@ -30,6 +31,8 @@ void MultiFlow::addSensor(Sensor *s) {
 	newsn->irradiatingUAV = nullptr;
 
 	sens_list.push_back(newsn);
+
+	sens_map[s->id] = newsn;
 }
 
 void MultiFlow::addChargStationAndUAV(MyCoord c, UAV *u) {
@@ -39,6 +42,7 @@ void MultiFlow::addChargStationAndUAV(MyCoord c, UAV *u) {
 	newcs->pos = c;
 	newcs->u = u;
 	newcs->lastTimestamp = 0;
+	newcs->lastTimestamp_tslot = 0;
 
 	cs_map[u->id] = newcs;
 }
@@ -50,6 +54,7 @@ void MultiFlow::addChargStationAndUAV_distributed(MyCoord c, UAV *u) {
 	newcs->pos = c;
 	newcs->u = u;
 	newcs->lastTimestamp = 0;
+	newcs->lastTimestamp_tslot = 0;
 
 	cs_map[u->id] = newcs;
 
@@ -279,7 +284,7 @@ void MultiFlow::activateTSPandRecharge(ChargingNode *cnode, list<SensorNode *> &
 			<< endl;
 }
 
-double MultiFlow::calcLossSensor(SensorNode *s_check, std::list<SensorNode *> &sList, int texp) {
+double MultiFlow::calcLossSensorOriginal(SensorNode *s_check, std::list<SensorNode *> &sList, int texp) {
 	double ris = 0;
 
 	for (auto& s : sList) {
@@ -298,13 +303,44 @@ double MultiFlow::calcLossSensor(SensorNode *s_check, std::list<SensorNode *> &s
 	return ris;
 }
 
-double MultiFlow::calcLossSensorPresentFuture(SensorNode *s_check, std::list<SensorNode *> &sList, int texp) {
+double MultiFlow::calcLossSensor(SensorNode *s_check, std::list<SensorNode *> &sList, int texp) {
 	double ris = 0;
+
+	std::list<Sensor *> ssList;
+	for (auto& sn : sList){
+		ssList.push_back(sn->sens);
+	}
 
 	for (auto& s : sList) {
 		for (auto& r : s->readings) {
-			double actLoss = Loss::getInstance().calculate_loss_distance(s->sens, s_check->sens)
-								+ Loss::getInstance().calculate_loss_time(r.readTime, texp);
+			if (r.readTime < texp) {
+				double actLoss = Loss::algebraic_sum(Loss::getInstance().calculate_loss_distance(s->sens, s_check->sens)
+						* Loss::getInstance().calculate_loss_time(r.readTime, texp),
+						Loss::getInstance().calculate_loss_energy(s_check->sens, texp, ssList));
+
+				if (actLoss > ris) {
+					ris = actLoss;
+				}
+			}
+		}
+	}
+
+	return ris;
+}
+
+double MultiFlow::calcLossSensorPresentFuture(SensorNode *s_check, std::list<SensorNode *> &sList, int texp) {
+	double ris = 0;
+
+	std::list<Sensor *> ssList;
+	for (auto& sn : sList){
+		ssList.push_back(sn->sens);
+	}
+
+	for (auto& s : sList) {
+		for (auto& r : s->readings) {
+			double actLoss = Loss::algebraic_sum(Loss::getInstance().calculate_loss_distance(s->sens, s_check->sens)
+								* Loss::getInstance().calculate_loss_time(r.readTime, texp),
+								Loss::getInstance().calculate_loss_energy(s_check->sens, texp, ssList));
 
 			if (actLoss > ris) {
 				ris = actLoss;
@@ -336,8 +372,8 @@ SensorNode *MultiFlow::getMinLossSensor(list<SensorNode *> &sList, int texp) {
 }
 
 double MultiFlow::calculateCosts1Edge(TSP2MultiFlow *e) {
-	if (	((e->first->sens->id == TSP_DUMMY_CODE_START) && (e->second->sens->id == TSP_DUMMY_CODE_END)) ||
-			((e->second->sens->id == TSP_DUMMY_CODE_START) && (e->first->sens->id == TSP_DUMMY_CODE_END)) ){
+	if (	((e->first->sens->id == TSP_DUMMY_CODE_START_MF) && (e->second->sens->id == TSP_DUMMY_CODE_END_MF)) ||
+			((e->second->sens->id == TSP_DUMMY_CODE_START_MF) && (e->first->sens->id == TSP_DUMMY_CODE_END_MF)) ){
 		return (-1);
 	}
 	else {
@@ -373,7 +409,7 @@ void MultiFlow::calculateTSP_incremental(list<SensorNode *> &newTSP, list<Sensor
 				calcEnergyToTravel(sj->sens->coord, cnode->pos);
 	}
 	else {
-		Sensor *uavDummySensor = new Sensor(cnode->pos, 1, TSP_UAV_CODE);
+		Sensor *uavDummySensor = new Sensor(cnode->pos, 1, TSP_UAV_CODE_MF);
 		SensorNode uavDummySensorNode;
 		list<SensorNode *> allSens;
 		list<TSP2MultiFlow *> edges;
@@ -565,7 +601,7 @@ void MultiFlow::calculateTSP_incremental(list<SensorNode *> &newTSP, list<Sensor
 		tsp_energy_cost = 0;
 		for (auto& fe : finalcircuit) {
 			//fCircuit.push_back(fe);
-			if (fe->second->sens->id != TSP_UAV_CODE) {
+			if (fe->second->sens->id != TSP_UAV_CODE_MF) {
 				newTSP.push_back(fe->second);
 
 				tsp_time += calcTimeToWuData();
@@ -1143,7 +1179,7 @@ double MultiFlow::calcIndex(void) {
 
 	for (auto& s : sens_list) {
 		for (auto& r : s->readings) {
-			double actIndex = 1.0 - calcLossSensor(s, sens_list, r.readTime);
+			double actIndex = 1.0 - calcLossSensorOriginal(s, sens_list, r.readTime);
 			if (actIndex < 0) {
 				cerr << "Error in calculating index: " << actIndex << endl;
 				exit(EXIT_FAILURE);
@@ -1187,6 +1223,7 @@ void MultiFlow::run_distributed(double end_time) {
 		for (auto& s : sens_list) {
 			uav->sensMap[s->sens->id].sens = s;
 			uav->sensMap[s->sens->id].lastTimeStamp = sim_time;
+			uav->sensMap[s->sens->id].lastResidualEnergy = s->sens->residual_energy;
 		}
 
 		uav->us = UavDistributed::RECHARGING;
@@ -1247,6 +1284,11 @@ void MultiFlow::updateNeighMaps(double timenow) {
 					for (auto& s2 : u2->sensMap) {
 						if (s2.second.lastTimeStamp > u1->sensMap[s2.first].lastTimeStamp) {
 							u1->sensMap[s2.first].lastTimeStamp = s2.second.lastTimeStamp;
+							toUpdate = true;
+						}
+
+						if (s2.second.lastResidualEnergy < u1->sensMap[s2.first].lastResidualEnergy) {
+							u1->sensMap[s2.first].lastResidualEnergy = s2.second.lastResidualEnergy;
 							toUpdate = true;
 						}
 					}
@@ -1415,6 +1457,9 @@ void MultiFlow::run_uav(UavDistributed *uav, double simTime) {
 				sn->readings.push_back(sr);
 				uav->sensMap[sn->sens->id].lastTimeStamp = simTime;
 
+				// update last read energy
+				uav->sensMap[sn->sens->id].lastResidualEnergy = sn->sens->residual_energy;
+
 				//go away
 				sn->commTimeSlots = 0;
 				sn->nCommAttempt = 0;
@@ -1468,11 +1513,25 @@ double MultiFlow::calcLossSensor_distributed(SensorNode *sens, UavDistributed *u
 
 	//cout << "        Inside calcLossSensor. START" << endl << flush;
 
+	/*std::list<Sensor *> ssList;
+	for (auto& sn : sens_list){
+		ssList.push_back(sn->sens);
+	}*/
+
+	std::list<long double> ldList;
+	for (auto& sn : sens_list){
+		if (sn->sens->id != sens->sens->id) {
+			ldList.push_back(uav->sensMap[sn->sens->id].lastResidualEnergy);
+		}
+	}
+
 	for (auto& s : uav->sensMap) {
 		if (s.second.lastTimeStamp < texp) {
 
-			double actLoss = Loss::getInstance().calculate_loss_distance(sens->sens, s.second.sens->sens)
-											* Loss::getInstance().calculate_loss_time(s.second.lastTimeStamp, texp);
+			double actLoss = Loss::algebraic_sum(Loss::getInstance().calculate_loss_distance(sens->sens, s.second.sens->sens)
+											* Loss::getInstance().calculate_loss_time(s.second.lastTimeStamp, texp),
+											//Loss::getInstance().calculate_loss_energy(sens->sens, texp, ssList));
+											Loss::getInstance().calculate_loss_energy_only(uav->sensMap[sens->sens->id].lastResidualEnergy, ldList));
 
 			//cout << "        Inside calcLossSensor. Not discounted loss: " << actLoss << endl << flush;
 
@@ -1619,8 +1678,8 @@ void MultiFlow::calculateTSP_incremental_distributed(list<SensorNode *> &newTSP,
 				calcEnergyToTravel(sj->sens->coord, endPoint);
 	}
 	else {
-		Sensor *uavDummySensorStart = new Sensor(startPoint, 1, TSP_DUMMY_CODE_START);
-		Sensor *uavDummySensorEnd = new Sensor(endPoint, 1, TSP_DUMMY_CODE_END);
+		Sensor *uavDummySensorStart = new Sensor(startPoint, 1, TSP_DUMMY_CODE_START_MF);
+		Sensor *uavDummySensorEnd = new Sensor(endPoint, 1, TSP_DUMMY_CODE_END_MF);
 		SensorNode uavDummySensorNodeStart;
 		SensorNode uavDummySensorNodeEnd;
 		list<SensorNode *> allSens;
@@ -1721,14 +1780,14 @@ void MultiFlow::calculateTSP_incremental_distributed(list<SensorNode *> &newTSP,
 			for (auto it_fe = finaledges.begin(); it_fe != finaledges.end(); it_fe++) {
 				if (((*it_fe)->first->sens->id == nextS->sens->id) || ((*it_fe)->second->sens->id == nextS->sens->id)) {
 					if ((*it_fe)->first->sens->id == nextS->sens->id){
-						if ((nextS->sens->id == TSP_DUMMY_CODE_START) && ((*it_fe)->second->sens->id == TSP_DUMMY_CODE_END)) {
+						if ((nextS->sens->id == TSP_DUMMY_CODE_START_MF) && ((*it_fe)->second->sens->id == TSP_DUMMY_CODE_END_MF)) {
 							continue;
 						}
 						finalcircuit.push_back(new TSP2MultiFlow(nextS, (*it_fe)->second, (*it_fe)->weight));
 						nextS = (*it_fe)->second;
 					}
 					else {
-						if ((nextS->sens->id == TSP_DUMMY_CODE_END) && ((*it_fe)->second->sens->id == TSP_DUMMY_CODE_START)) {
+						if ((nextS->sens->id == TSP_DUMMY_CODE_END_MF) && ((*it_fe)->second->sens->id == TSP_DUMMY_CODE_START_MF)) {
 							continue;
 						}
 						finalcircuit.push_back(new TSP2MultiFlow(nextS, (*it_fe)->first, (*it_fe)->weight));
@@ -1822,7 +1881,7 @@ void MultiFlow::calculateTSP_incremental_distributed(list<SensorNode *> &newTSP,
 		tsp_energy_cost = 0;
 		for (auto& fe : finalcircuit) {
 			//fCircuit.push_back(fe);
-			if ((fe->second->sens->id != TSP_DUMMY_CODE_START) && (fe->second->sens->id != TSP_DUMMY_CODE_END)) {
+			if ((fe->second->sens->id != TSP_DUMMY_CODE_START_MF) && (fe->second->sens->id != TSP_DUMMY_CODE_END_MF)) {
 				newTSP.push_back(fe->second);
 
 				tsp_time += calcTimeToWuData();
@@ -1915,6 +1974,447 @@ void MultiFlow::writeHitmaps_multiflow(std::string filename) {
 			ofs_single.close();
 		}
 	}
+}
+
+
+
+
+
+
+void MultiFlow::init_treeMF(double endTS, double timeoffset) {
+	int nTslot = ceil(endTS / timeoffset);
+
+	cerr << "Start making the multiflow graph" << endl;
+
+	//init maps
+	for (auto& s : sens_list) {
+		mfTreeMAP_sensor[s->sens->id] = map<double, SensorNodeTree *>();
+	}
+
+	for (auto& cn : cs_map) {
+		mfTreeMAP_uav[cn.second->u->id] = map<double, ChargingNodeTree *>();
+	}
+
+	cerr << "Start building the nodes" << endl;
+
+	//init the nodes
+	for (int ts = 0; ts <= nTslot; ts++) {
+		double t = ((double) ts) * timeoffset;
+		for (auto& s : sens_list) {
+			SensorNodeTree *newsnt = new(SensorNodeTree);
+			newsnt->id = s->sens->id;
+			newsnt->timestamp = t;
+			newsnt->timestamp_Tslot = ts;
+			newsnt->timestamp_offset = timeoffset;
+			newsnt->read = false;
+			newsnt->s = s->sens;
+			newsnt->pos = s->sens->coord;
+
+			mfTreeMAP_sensor[s->sens->id][t] = newsnt;
+		}
+
+		for (auto& cn : cs_map) {
+			ChargingNodeTree *newcnt = new ChargingNodeTree();
+			newcnt->id = cn.second->u->id;
+			newcnt->timestamp = t;
+			newcnt->timestamp_Tslot = ts;
+			newcnt->timestamp_offset = timeoffset;
+			newcnt->charging = false;
+			newcnt->u = cn.second->u;
+			newcnt->pos = cn.second->u->recharge_coord;
+
+			mfTreeMAP_uav[cn.second->u->id][t] = newcnt;
+		}
+	}
+
+	cerr << "End building the nodes" << endl << endl;
+
+	cerr << "Start building the edges for UAVs" << endl;
+
+	//set the arcs for the charging stations
+	for (auto& cn : cs_map) {
+
+		cerr << " Start building the edges for U" << cn.second->u->id << endl;
+		cerr << "\r U" << cn.second->u->id << " T0";
+
+		//set for zero
+		ChargingNodeTree *zeroCNT = mfTreeMAP_uav[cn.second->u->id][0];
+		if (1 <= nTslot){
+			ArcTree *at = new ArcTree();
+			at->cnt_start = zeroCNT;
+			at->cnt_end = mfTreeMAP_uav[cn.second->u->id][timeoffset];
+			at->timecost = timeoffset;
+			at->timecost_Tslot = 1;
+
+			zeroCNT->nextCN.push_back(at);
+		}
+		for (auto& s : sens_list) {
+			double timeArrival = 50;		//TODO
+			int timeArrival_Tslot = ceil (timeArrival / timeoffset);
+			if (timeArrival_Tslot <= nTslot) {
+				ArcTree *at = new ArcTree();
+				at->cnt_start = zeroCNT;
+				at->snt_end = mfTreeMAP_sensor[s->sens->id][((double) timeArrival_Tslot) * timeoffset];
+				at->timecost = ((double) timeArrival_Tslot) * timeoffset;
+				at->timecost_Tslot = timeArrival_Tslot;
+
+				zeroCNT->nextS.push_back(at);
+			}
+		}
+
+		//set the others
+		for (int ts = 1; ts <= nTslot; ts++) {
+			double t = ((double) ts) * timeoffset;
+			ChargingNodeTree *actCNT = mfTreeMAP_uav[cn.second->u->id][t];
+
+			cerr << "\r U" << cn.second->u->id << " T" << t;
+
+			if ((ts+1) <= nTslot){
+				ArcTree *at = new ArcTree();
+				at->cnt_start = actCNT;
+				at->cnt_end = mfTreeMAP_uav[cn.second->u->id][((double) (ts+1)) * timeoffset];
+				at->timecost = timeoffset;
+				at->timecost_Tslot = 1;
+
+				zeroCNT->nextCN.push_back(at);
+			}
+
+			for (auto& l : zeroCNT->nextS){
+				int zeroTslot_arr = l->snt_end->timestamp_Tslot;
+				if ((zeroTslot_arr + ts) <= nTslot) {
+					double newArrTime = ((double) (zeroTslot_arr + ts)) * timeoffset;
+					ArcTree *at = new ArcTree();
+					at->cnt_start = actCNT;
+					at->snt_end = mfTreeMAP_sensor[l->snt_end->id][newArrTime];
+					at->timecost = l->timecost;
+					at->timecost_Tslot = l->timecost_Tslot;
+
+					actCNT->nextS.push_back(at);
+				}
+			}
+		}
+		cerr << " Finish" << endl;
+	}
+
+	cerr << "Start building the edges for sensors" << endl;
+	//set the arcs for the sensors
+	for (auto& s : sens_list) {
+
+		cerr << " Start building the edges for S" << s->sens->id << endl;
+		cerr << "\r S" << s->sens->id << " T0";
+
+		//set for zero
+		SensorNodeTree *zeroSNT = mfTreeMAP_sensor[s->sens->id][0];
+		for (auto& s1 : sens_list) {
+			if (s->sens->id != s1->sens->id) {
+				double timeArrival = 50;		//TODO
+				int timeArrival_Tslot = ceil (timeArrival / timeoffset);
+				if (timeArrival_Tslot <= nTslot) {
+					ArcTree *at = new ArcTree();
+					at->snt_start = zeroSNT;
+					at->snt_end = mfTreeMAP_sensor[s1->sens->id][((double) timeArrival_Tslot) * timeoffset];
+					at->timecost = timeArrival;
+					at->timecost_Tslot = timeArrival_Tslot;
+
+					zeroSNT->nextS.push_back(at);
+				}
+			}
+		}
+		for (auto& cn : cs_map) {
+			double timeArrival = 50;		//TODO
+			int timeArrival_Tslot = ceil (timeArrival / timeoffset);
+			if (timeArrival_Tslot <= nTslot) {
+				ArcTree *at = new ArcTree();
+				at->snt_start = zeroSNT;
+				at->cnt_end = mfTreeMAP_uav[cn.second->u->id][((double) timeArrival_Tslot) * timeoffset];
+				at->timecost = timeArrival;
+				at->timecost_Tslot = timeArrival_Tslot;
+
+				zeroSNT->nextCN.push_back(at);
+			}
+		}
+
+		//set the others
+		for (int ts = 1; ts <= nTslot; ts++) {
+			double t = ((double) ts) * timeoffset;
+			SensorNodeTree *actSNT = mfTreeMAP_sensor[s->sens->id][t];
+
+			cerr << "\r S" << s->sens->id << " T" << t;
+
+			for (auto& l : zeroSNT->nextS){
+				int zeroTslot_arr = l->snt_end->timestamp_Tslot;
+				if ((zeroTslot_arr + ts) <= nTslot) {
+					double newArrTime = ((double) (zeroTslot_arr + ts)) * timeoffset;
+
+					ArcTree *at = new ArcTree();
+					at->snt_start = actSNT;
+					at->snt_end = mfTreeMAP_sensor[l->snt_end->id][newArrTime];
+					at->timecost = l->timecost;
+					at->timecost_Tslot = l->timecost_Tslot;
+
+					actSNT->nextS.push_back(at);
+				}
+			}
+
+			for (auto& l : zeroSNT->nextCN){
+				int zeroTslot_arr = l->cnt_end->timestamp_Tslot;
+				if ((zeroTslot_arr + ts) <= nTslot) {
+					double newArrTime = ((double) (zeroTslot_arr + ts)) * timeoffset;
+
+					ArcTree *at = new ArcTree();
+					at->snt_start = zeroSNT;
+					at->cnt_end = mfTreeMAP_uav[l->cnt_end->id][newArrTime];
+					at->timecost = l->timecost;
+					at->timecost_Tslot = l->timecost_Tslot;
+
+					actSNT->nextCN.push_back(at);
+				}
+			}
+		}
+		cerr << " Finish" << endl;
+	}
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+int MultiFlow::calculateMatrixTimeSlot(int id1, int id2) {
+	MyCoord p1, p2;
+
+	if (Sensor::isSensorID(id1)) {
+		p1 = sens_map[id1]->sens->id;
+	}
+	else {
+		p1 = cs_map[id1]->u->id;
+	}
+
+	if (Sensor::isSensorID(id2)) {
+		p2 = sens_map[id2]->sens->id;
+	}
+	else {
+		p2 = cs_map[id2]->u->id;
+	}
+
+	double ttt = p1.distance(p2) / Generic::getInstance().maxVelocity;
+	int fly = ceil(ttt / Generic::getInstance().timeSlot);
+
+	if (Sensor::isSensorID(id2)) {
+		double wuANDcom = 0;
+		wuANDcom += Generic::getInstance().tstartup;
+		wuANDcom += Generic::getInstance().ttimeout * Generic::getInstance().nr;
+		wuANDcom += Generic::getInstance().twakeup;
+
+		fly += ceil(wuANDcom / Generic::getInstance().timeSlot);
+	}
+
+	return fly;
+}
+
+double MultiFlow::calculateMatrixEnergy(int id1, int id2) {
+	return (-(RandomGenerator::getInstance().getRealUniform(1, 10))); //TODO
+}
+
+void MultiFlow::init_matrix_treeMF(void) {
+	for (auto& s : sens_list) {
+		mfTreeMatrix_time[s->sens->id] = map<int, double>();
+		mfTreeMatrix_timeslot[s->sens->id] = map<int, int>();
+		mfTreeMatrix_energy[s->sens->id] = map<int, double>();
+	}
+	for (auto& cn : cs_map) {
+		mfTreeMatrix_time[cn.second->u->id] = map<int, double>();
+		mfTreeMatrix_timeslot[cn.second->u->id] = map<int, int>();
+		mfTreeMatrix_energy[cn.second->u->id] = map<int, double>();
+	}
+
+	for (auto& vt : mfTreeMatrix_time) {
+		for (auto& s : sens_list) {
+			mfTreeMatrix_time[vt.first][s->sens->id] = calculateMatrixTimeSlot(vt.first, s->sens->id);
+			mfTreeMatrix_timeslot[vt.first][s->sens->id] = ceil(mfTreeMatrix_time[vt.first][s->sens->id] / Generic::getInstance().timeSlot);
+		}
+		for (auto& cn : cs_map) {
+			mfTreeMatrix_time[vt.first][cn.second->u->id] = calculateMatrixTimeSlot(vt.first, cn.second->u->id);
+			mfTreeMatrix_timeslot[vt.first][cn.second->u->id] = ceil(mfTreeMatrix_time[vt.first][cn.second->u->id] / Generic::getInstance().timeSlot);
+		}
+	}
+
+	for (auto& ve : mfTreeMatrix_energy) {
+		for (auto& s : sens_list) {
+			mfTreeMatrix_energy[ve.first][s->sens->id] = calculateMatrixEnergy(ve.first, s->sens->id);
+		}
+		for (auto& cn : cs_map) {
+			mfTreeMatrix_energy[ve.first][cn.second->u->id] = calculateMatrixEnergy(ve.first, cn.second->u->id);
+		}
+	}
+}
+
+void MultiFlow::run_tree_multiflow(double end_time) {
+
+	pWU = calculate_pWU(Generic::getInstance().flightAltitudeUAV, 4,
+			Generic::getInstance().sigmaGPS + Generic::getInstance().sigmaPilot, Generic::getInstance().sigmaRot);
+	cerr << "fine pWU: " << pWU << endl;
+
+	ChargingNode *leftmost = getLeftMostUAV(end_time); //cs_map.begin()->second;
+	while(actSensorTimeStamp < end_time){
+		if (actSensorTimeStamp < actUAVTimeStamp) {
+			bool sensUP = updateSensorsEnergy(actSensorTimeStamp, actUAVTimeStamp);
+			actSensorTimeStamp = actUAVTimeStamp;
+
+			if (!sensUP) {
+				break;
+			}
+		}
+
+		calculateTreeTSP_and_UpdateMF(leftmost, end_time);
+
+		leftmost = getLeftMostUAV(end_time);
+		if (leftmost == nullptr) {
+			actUAVTimeStamp = end_time;
+			if (actSensorTimeStamp < actUAVTimeStamp) {
+				bool sensUP = updateSensorsEnergy(actSensorTimeStamp, actUAVTimeStamp);
+				actSensorTimeStamp = actUAVTimeStamp;
+
+				if (!sensUP) {
+					break;
+				}
+			}
+
+			break;
+		}
+		else {
+			double lastTS = actUAVTimeStamp;
+			actUAVTimeStamp = leftmost->lastTimestamp;
+			if (actUAVTimeStamp < lastTS) {
+				cerr << "ERROR incrementing time stamp" << endl;
+				exit(EXIT_FAILURE);
+			}
+		}
+	}
+
+	cerr << "Simulation FINISHED!!!" << endl;
+}
+
+
+void MultiFlow::calculateTreeTSP_and_UpdateMF(ChargingNode *leftmost, double end_time) {
+	list<SensorNode *> bestTSP;
+	double startUAVenergy = leftmost->u->residual_energy;
+	double timek = leftmost->lastTimestamp;
+	int timek_tslot = leftmost->lastTimestamp_tslot;
+	//int bestTimeSlot = numeric_limits<int>::max();
+
+	do {
+		cout << "Calculating BSF!!!" << endl << flush;
+		calculateBSF(bestTSP, leftmost, timek, timek_tslot, startUAVenergy);
+		cout << "Calculated BSF!!! - " << flush;
+		for (auto& bsf : bestTSP) {
+			cout << "S" << bsf->sens->id << " " << flush;
+		}
+		cout << endl << flush;
+
+		++timek_tslot;
+		timek = timek_tslot * Generic::getInstance().timeSlot;
+		startUAVenergy += min(leftmost->u->max_energy,
+				Generic::getInstance().timeSlot * Generic::getInstance().rechargeStation_power);
+
+	} while ((bestTSP.size() == 0) && (timek < end_time));
+
+
+
+	activateTSPandRecharge(leftmost, bestTSP);
+}
+
+
+
+void MultiFlow::calculateBSF(list<SensorNode *> &path, ChargingNode *cn, double tk, int tk_tslot, double uav_e) {
+	list<pair<int, int>> q;
+
+	map<pair<int,int>, double> energymap;
+	list<pair<int, int>> llist;
+	map<pair<int,int>, list<pair<int,int>>> pathmap;
+	//map<pair<int,int>, list<pair<int,int>>> phimap;
+
+	//init
+	energymap[make_pair(cn->u->id, tk_tslot)] = uav_e;
+	llist.push_back(make_pair(cn->u->id, tk_tslot));
+	pathmap[make_pair(cn->u->id, tk_tslot)] = list<pair<int,int>>();
+	//phimap[make_pair(cn->u->id, tk_tslot)] = list<pair<int,int>>();
+
+	q.push_back(make_pair(cn->u->id, tk_tslot));
+
+	while (!q.empty()) {
+		pair<int, int> qt_pair = q.front();
+		q.pop_front();
+
+		list<pair<SensorNode *, double>> allSens;
+		for (auto& s : sens_map) {
+			if (s.second->sens->id != qt_pair.first) {
+				int tm_tslot = qt_pair.second + mfTreeMatrix_timeslot[qt_pair.first][s.second->sens->id];
+				allSens.push_back(make_pair(s.second, calculateLossBSF(pathmap[qt_pair], s.second, tm_tslot)));
+			}
+		}
+		allSens.sort(MultiFlow::sortEdgesBSF);
+
+		for (auto& sj : allSens) {
+			int tm_tslot = qt_pair.second + mfTreeMatrix_timeslot[qt_pair.first][sj.first->sens->id];
+			double residualAfter = energymap[qt_pair]
+									- mfTreeMatrix_energy[qt_pair.first][sj.first->sens->id]
+									- mfTreeMatrix_energy[sj.first->sens->id][cn->u->id];
+			pair<int, int> sj_pair = make_pair(sj.first->sens->id, tm_tslot);
+
+			if ( (pathmap.count(sj_pair) == 0) && (residualAfter > 0) ){
+				q.push_back(sj_pair);
+
+				pathmap[sj_pair] = list<pair<int,int>>();
+				for (auto& oldp : pathmap[qt_pair]) {
+					pathmap[sj_pair].push_back(oldp);
+				}
+				pathmap[sj_pair].push_back(sj_pair);
+
+				energymap[sj_pair] = energymap[qt_pair] - mfTreeMatrix_energy[qt_pair.first][sj_pair.first];
+
+				llist.remove(qt_pair);
+				llist.push_back(sj_pair);
+
+				if (llist.size() > sens_map.size()) {
+					pair<int, int> st_pair = make_pair(-1, -1);
+					double gain = numeric_limits<double>::max();
+
+					for (auto& stprime : llist) {
+						double sumgain = 0;
+
+						for (auto& stpath : pathmap[stprime]) {
+							sumgain += 1.0 - calculateLossBSF(pathmap[stprime], sens_map[stpath.first], stpath.second);
+						}
+
+						if(sumgain < gain) {
+							st_pair = stprime;
+							gain = sumgain;
+						}
+					}
+
+					llist.remove(st_pair);
+					q.remove(st_pair);
+				}
+			}
+		}
+
+	}
+}
+
+double MultiFlow::calculateLossBSF(list<pair<int,int>> &phi, SensorNode *sn, int tm_tslot) {
+	return 0;//TODO
 }
 
 

@@ -25,6 +25,28 @@ Loss::Loss() {
 	alpha = 0.5;
 }
 
+double Loss::calculate_loss_energy_only(long double e, std::list<long double> &el) {
+	double ris = 0;
+	for (auto& ee : el) {
+		double actLoss = 0;
+		if (e < ee) {
+			if(use_Sigmoid) {
+				double exp_exponent = ((ee - e) - m_e) * k_e;
+				actLoss = 1.0 - (1.0 / (1.0 + exp(exp_exponent)));
+			}
+			else {
+				double exp_exponent = (ee - e) * k_e;
+				actLoss = 1.0 - (1.0 / exp(exp_exponent));
+			}
+
+			if (actLoss > ris) {
+				ris = actLoss;
+			}
+		}
+	}
+	return ris;
+}
+
 double Loss::calculate_loss_energy(Sensor *se, int tk, std::list<Sensor *> &sl) {
 	double ris = 0;
 	for (auto& ss : sl) {

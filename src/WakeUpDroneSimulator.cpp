@@ -227,6 +227,10 @@ int main(int argc, char **argv) {
 	double uavComRange = 50.0;			// meters -> UAV communication range
 	double neighUAVTout = 3600.0;		// sec -> UAV neigh timeout in the distributed method
 
+	double twu = 1;						// sec -> t_{wakeup}
+	double pwu = 1;						// probability of wake-up -> p_{wakeup}
+	double pcom = 1;					// probability of comunication -> p_{com}
+
 	//Statistics
 	int timeslots2log = 30;
 	bool makeStateDuringSim = false;
@@ -309,6 +313,10 @@ int main(int argc, char **argv) {
 
 	const std::string &multiflow_uav_com_range = input.getCmdOption("-uavComR");
 	const std::string &multiflow_uav_tout = input.getCmdOption("-uavNeighTout");
+
+	const std::string &multiflow_static_twu = input.getCmdOption("-mfTwakeup");
+	const std::string &multiflow_static_pwu = input.getCmdOption("-mfPwakeup");
+	const std::string &multiflow_static_pcomm = input.getCmdOption("-mfPcomm");
 
 	if (!seedUser.empty()) {
 		int seedR = atoi(seedUser.c_str());
@@ -429,6 +437,9 @@ int main(int argc, char **argv) {
 		else if (simu_type.compare("distributed") == 0){
 			st = Simulator::SIMU_DISTRIBUTED;
 		}
+		else if (simu_type.compare("treemultiflow") == 0){
+			st = Simulator::SIMU_TREE_MULTI_FLOW;
+		}
 	}
 	if (!multiflow_t_startup.empty()) {
 		tsup = atof(multiflow_t_startup.c_str());
@@ -485,13 +496,22 @@ int main(int argc, char **argv) {
 	if (!multiflow_uav_tout.empty()) {
 		neighUAVTout = atof(multiflow_uav_tout.c_str());
 	}
+	if (!multiflow_static_twu.empty()) {
+		twu = atof(multiflow_static_twu.c_str());
+	}
+	if (!multiflow_static_pwu.empty()) {
+		pwu = atof(multiflow_static_pwu.c_str());
+	}
+	if (!multiflow_static_pcomm.empty()) {
+		pcom = atof(multiflow_static_pcomm.c_str());
+	}
 
 	Generic::getInstance().init(timeSlot);
 	Generic::getInstance().setSensorParam(initEnergySensor, sensorSelfDischarge, eON, eBOOT, fullRandomSensors);
 	Generic::getInstance().setUAVParam(initEnergyUAV, flightAltitude, maxVelocity, motorPower, rechargePower, time2read, energy2read, varGPS, varPilot, varRot);
 	Generic::getInstance().setWakeUpParam(wakeupPower, wakeupMinPower, wakeupFreq, energy2wakeup, gainTx, gainRx, gUmax, aUmax, gSmax, aSmax);
 	Generic::getInstance().setStatParam(makeStateDuringSim, statFile, hitmapFile);
-	Generic::getInstance().setMultiFlowParam(tsup, ttout, numr, ps_sup, ps_tx, ps_rx, pu_sup, pu_tx, pu_rx, 4*motorPower, uavComRange, neighUAVTout);
+	Generic::getInstance().setMultiFlowParam(tsup, ttout, numr, ps_sup, ps_tx, ps_rx, pu_sup, pu_tx, pu_rx, 4*motorPower, uavComRange, neighUAVTout, twu, pwu, pcom);
 	Loss::getInstance().init(kd, kt, ke, md, mt, me, useSigmoid, a);
 	Statistics::getInstance().init(timeslots2log);
 

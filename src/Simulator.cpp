@@ -161,6 +161,10 @@ void Simulator::finish(std::vector<CoordCluster *> &clustVec, std::list<Sensor *
 		case SIMU_DISTRIBUTED:
 			finish_distributed(clustVec, sensList, allReadings);
 			break;
+
+		case SIMU_TREE_MULTI_FLOW:
+			finish_tree_multiflow(clustVec, sensList, allReadings);
+			break;
 	}
 }
 
@@ -235,6 +239,10 @@ void Simulator::run(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &
 
 		case SIMU_DISTRIBUTED:
 			run_distributed(clustVec, sensList, allReadings);
+			break;
+
+		case SIMU_TREE_MULTI_FLOW:
+			run_tree_multiflow(clustVec, sensList, allReadings);
 			break;
 	}
 }
@@ -711,5 +719,69 @@ void Simulator::finish_distributed(std::vector<CoordCluster *> &clustVec, std::l
 	}
 }
 
+
+
+
+
+
+
+
+
+
+
+
+void Simulator::run_tree_multiflow(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &sensList, std::list<Readings *> &allReadings) {
+	if (!Generic::getInstance().statFilename.empty()) {
+		std::ofstream ofs (Generic::getInstance().statFilename, std::ofstream::out);
+		if (ofs.is_open()) {
+			ofs << "";
+			ofs.close();
+		}
+	}
+
+	mf = new MultiFlow();
+	mf->init();
+
+	for (auto& cv : clustVec) {
+		mf->addChargStationAndUAV(*(cv->clusterHead), cv->clusterUAV);
+	}
+	for (auto& s : sensList) {
+		mf->addSensor(s);
+	}
+
+	//mf->init_treeMF(end_time, Generic::getInstance().timeSlot);
+	mf->init_matrix_treeMF();
+	mf->run_tree_multiflow(end_time);
+
+}
+
+
+void Simulator::finish_tree_multiflow(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &sensList, std::list<Readings *> &allReadings) {
+	if (!Generic::getInstance().statFilename.empty()) {
+
+		std::ofstream ofs (Generic::getInstance().statFilename, std::ofstream::out | std::ofstream::app);
+		if (ofs.is_open()) {
+
+			double lifetimeSec = mf->getLastSensorRead();
+			ofs << "FINISH LifetimeSecs " << lifetimeSec << endl;
+			ofs << "FINISH LifetimeDays " << ((double) lifetimeSec) / 86400.0 << endl;
+
+			double index = mf->calcIndex();
+			ofs << "FINISH Index " << index << endl;
+
+		}
+	}
+
+	if (!Generic::getInstance().hitmapFilename.empty()) {
+		/*std::ofstream ofs (Generic::getInstance().hitmapFilename, std::ofstream::out);
+		if (ofs.is_open()) {
+			for (auto& s : sensList) {
+				ofs << s->id << " " << s->coord.x << " " << s->coord.y << " " << s->mySensorReadings.size() << endl;
+			}
+			ofs.close();
+		}*/
+		mf->writeHitmaps_multiflow(Generic::getInstance().hitmapFilename);
+	}
+}
 
 

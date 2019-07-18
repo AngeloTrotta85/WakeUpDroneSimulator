@@ -17,7 +17,7 @@
 #include "Loss.h"
 #include "Generic.h"
 
-int Sensor::idSensGen = 0;
+int Sensor::idSensGen = SENS_MIN_ID;
 
 Sensor::Sensor(MyCoord sensCoord, double re) {
 	coord = sensCoord;

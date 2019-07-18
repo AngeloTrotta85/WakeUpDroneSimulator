@@ -16,18 +16,76 @@
 #include "MyCoord.h"
 #include "Generic.h"
 
-#ifndef TSP_UAV_CODE
-#define TSP_UAV_CODE 100000
+#ifndef TSP_UAV_CODE_MF
+#define TSP_UAV_CODE_MF 1000000
 #endif
 
-#ifndef TSP_DUMMY_CODE_START
-#define TSP_DUMMY_CODE_START 200000
+#ifndef TSP_DUMMY_CODE_START_MF
+#define TSP_DUMMY_CODE_START_MF 2000000
 #endif
-#ifndef TSP_DUMMY_CODE_END
-#define TSP_DUMMY_CODE_END 200001
+#ifndef TSP_DUMMY_CODE_END_MF
+#define TSP_DUMMY_CODE_END_MF 2000001
 #endif
 
 using namespace std;
+
+class SensorNodeTree;
+class ChargingNodeTree;
+
+class ArcTree {
+public:
+	ArcTree(){
+		snt_start = nullptr;
+		snt_end = nullptr;
+		cnt_start = nullptr;
+		cnt_end = nullptr;
+		u = nullptr;
+		s = nullptr;
+		timecost = timecost_Tslot = 0;
+	}
+public:
+	SensorNodeTree *snt_start;
+	SensorNodeTree *snt_end;
+	ChargingNodeTree *cnt_start;
+	ChargingNodeTree *cnt_end;
+
+	UAV *u;
+	Sensor *s;
+
+	double timecost;
+	int timecost_Tslot;
+
+};
+
+class ChargingNodeTree {
+public:
+	int id;
+	double timestamp;
+	int timestamp_Tslot;
+	double timestamp_offset;
+	bool charging;
+	UAV* u;
+	MyCoord pos;
+	//list<ChargingNodeTree *> nextCN;
+	//list<SensorNodeTree *> nextS;
+	list<ArcTree *> nextCN;
+	list<ArcTree *> nextS;
+};
+
+class SensorNodeTree {
+public:
+	int id;
+	double timestamp;
+	int timestamp_Tslot;
+	double timestamp_offset;
+	bool read;
+	Sensor* s;
+	MyCoord pos;
+	//list<ChargingNodeTree *> nextCN;
+	//list<SensorNodeTree *> nextS;
+	list<ArcTree *> nextCN;
+	list<ArcTree *> nextS;
+};
 
 class ChargingNode {
 public:
@@ -35,18 +93,21 @@ public:
 	UAV* u;
 	MyCoord pos;
 	double lastTimestamp;
+	int lastTimestamp_tslot;
 };
 
 class SensorNode {
 public:
 	typedef struct SensorRead{
 		double readTime;
+		int readTime_tslot;
 		UAV *uav;
 	} SensorRead;
 public:
 	Sensor* sens;
 	list<SensorRead> readings;
-	int lastTimestamp;
+	double lastTimestamp;
+	int lastTimestamp_tslot;
 
 	double accumulatedEnergy_uJ;
 	int irradiatingTimeSlots;
@@ -78,6 +139,12 @@ public:
 
 class UavDistributed {
 public:
+
+	typedef enum mftype {
+		UAVNODE,
+		SENSORNODE
+	} mftype;
+
 	typedef enum uavState {
 		RECHARGING,
 		MOVING,
@@ -94,6 +161,7 @@ public:
 	typedef struct sensElem {
 		SensorNode *sens;
 		double lastTimeStamp;
+		long double lastResidualEnergy;
 	} sensElem;
 
 public:
@@ -126,8 +194,11 @@ public:
 
 	void run(int end_time);
 	void run_distributed(double end_time);
+	void run_tree_multiflow(double end_time);
 
 	void init(void);
+	void init_treeMF(double endTS, double timeoffset);
+	void init_matrix_treeMF(void);
 
 	//double getPDF_Eloc(MyCoord e);
 	//double getPDF_Erot(MyCoord r);
@@ -152,6 +223,7 @@ public:
 	double calcEnergyToWuData(double pWU);
 
 	void activateTSPandRecharge(ChargingNode *cnode, list<SensorNode *> &tsp);
+	double calcLossSensorOriginal(SensorNode *s_check, list<SensorNode *> &sList, int texp);
 	double calcLossSensor(SensorNode *s_check, list<SensorNode *> &sList, int texp);
 	double calcLossSensorPresentFuture(SensorNode *s_check, std::list<SensorNode *> &sList, int texp);
 	double calcLossSensor_distributed(SensorNode *sens, UavDistributed *uav, double texp);
@@ -163,7 +235,9 @@ public:
 			SensorNode *sj, ChargingNode *cnode, double &tsp_time, double &tsp_energy_cost);
 	void calculateTSP_incremental_distributed(list<SensorNode *> &newTSP, list<SensorNode *> &actTSP,
 			SensorNode *sj, MyCoord startPoint, MyCoord endPoint, double &tsp_time, double &tsp_energy_cost);
+
 	void calculateTSP_and_UpdateMF(ChargingNode *leftmost);
+	void calculateTreeTSP_and_UpdateMF(ChargingNode *leftmost, double end_time);
 
 	double calcPowEta(int t);
 	double calcPowEtaSens(double e, double t);
@@ -174,6 +248,11 @@ public:
 
 	void calculateTSP_distributed(UavDistributed *uav, MyCoord startPoint, MyCoord endPoint, double simTime);
 	void calculateTSP_distributed_dummy(UavDistributed *uav, MyCoord startPoint, MyCoord endPoint, double simTime);
+
+	int calculateMatrixTimeSlot(int id1, int id2);
+	double calculateMatrixEnergy(int id1, int id2);
+	void calculateBSF(list<SensorNode *> &path, ChargingNode *cn, double tk, int tk_tslot, double uav_e);
+	double calculateLossBSF(list<pair<int,int>> &phi, SensorNode *sn, int tm_tslot);
 
 public:
 	void initEfficiencyMap(void);
@@ -190,12 +269,26 @@ public:
 	void writeHitmaps_distr(std::string filename);
 	void writeHitmaps_multiflow(std::string filename);
 
+public:
+	static bool sortEdgesBSF (const pair<SensorNode *, double> first, const pair<SensorNode *, double> second) {
+		return first.second < second.second;
+	}
+
 private:
 	map<int, ChargingNode *> cs_map;
+	map<int, SensorNode *> sens_map;
 	list<UavDistributed *> uav_list;
 	list<SensorNode *> sens_list;
 
 	map<int, double> efficiencyMap;
+
+	//map<mftype, map<int, map<double, > > > multiflowTreeMAP;
+	map<int, map<double, SensorNodeTree *> > mfTreeMAP_sensor;
+	map<int, map<double, ChargingNodeTree *> > mfTreeMAP_uav;
+
+	map<int, map<int, double> > mfTreeMatrix_time;
+	map<int, map<int, int> > mfTreeMatrix_timeslot;
+	map<int, map<int, double> > mfTreeMatrix_energy;
 
 	double actSensorTimeStamp;
 	double actUAVTimeStamp;

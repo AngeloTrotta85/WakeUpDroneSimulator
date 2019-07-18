@@ -10,9 +10,9 @@
 
 #include "TSP.h"
 
-//#ifndef TSP_UAV_CODE
+#ifndef TSP_UAV_CODE
 #define TSP_UAV_CODE 100000
-//#endif
+#endif
 
 class TSP2OptEnergyEdgeMinEnergy;
 

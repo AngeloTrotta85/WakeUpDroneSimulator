@@ -11,6 +11,9 @@
 #include <map>
 #include "MyCoord.h"
 
+#define SENS_MIN_ID 1000
+#define SENS_MAX_ID 9999
+
 class Readings;
 
 class Sensor {
@@ -19,6 +22,10 @@ public:
 	Sensor(MyCoord sensCoord, double re, int id_new);
 
 	bool isBooked(void);
+
+	static bool isSensorID(int id_check) {
+		return ((id_check >= SENS_MIN_ID) && (id_check <= SENS_MAX_ID));
+	}
 
 public:
 	static void generateRandomSensors(std::list<Sensor *> &pl, int ss, int ns);

@@ -165,6 +165,10 @@ void Simulator::finish(std::vector<CoordCluster *> &clustVec, std::list<Sensor *
 		case SIMU_TREE_MULTI_FLOW:
 			finish_tree_multiflow(clustVec, sensList, allReadings);
 			break;
+
+		case SIMU_TREE_MULTI_FLOW_DISTR:
+			finish_tree_multiflow_distr(clustVec, sensList, allReadings);
+			break;
 	}
 }
 
@@ -243,6 +247,10 @@ void Simulator::run(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &
 
 		case SIMU_TREE_MULTI_FLOW:
 			run_tree_multiflow(clustVec, sensList, allReadings);
+			break;
+
+		case SIMU_TREE_MULTI_FLOW_DISTR:
+			run_tree_multiflow_distr(clustVec, sensList, allReadings);
 			break;
 	}
 }
@@ -763,11 +771,86 @@ void Simulator::finish_tree_multiflow(std::vector<CoordCluster *> &clustVec, std
 		if (ofs.is_open()) {
 
 			double lifetimeSec = mf->getLastSensorRead();
+			double lifetimeHour = ((double) lifetimeSec) / 3600.0;
+			double lifetimeDay = ((double) lifetimeSec) / 86400.0;
 			ofs << "FINISH LifetimeSecs " << lifetimeSec << endl;
-			ofs << "FINISH LifetimeDays " << ((double) lifetimeSec) / 86400.0 << endl;
+			ofs << "FINISH LifetimeDays " << lifetimeDay << endl;
 
-			double index = mf->calcIndex();
+			double index = mf->calcIndex_Tree();
 			ofs << "FINISH Index " << index << endl;
+			ofs << "FINISH IndexOverHour " << (index / lifetimeHour) << endl;
+			ofs << "FINISH IndexOverDay " << (index / lifetimeDay) << endl;
+
+		}
+	}
+
+	if (!Generic::getInstance().hitmapFilename.empty()) {
+		/*std::ofstream ofs (Generic::getInstance().hitmapFilename, std::ofstream::out);
+		if (ofs.is_open()) {
+			for (auto& s : sensList) {
+				ofs << s->id << " " << s->coord.x << " " << s->coord.y << " " << s->mySensorReadings.size() << endl;
+			}
+			ofs.close();
+		}*/
+		mf->writeHitmaps_multiflow(Generic::getInstance().hitmapFilename);
+	}
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+void Simulator::run_tree_multiflow_distr(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &sensList, std::list<Readings *> &allReadings) {
+	if (!Generic::getInstance().statFilename.empty()) {
+		std::ofstream ofs (Generic::getInstance().statFilename, std::ofstream::out);
+		if (ofs.is_open()) {
+			ofs << "";
+			ofs.close();
+		}
+	}
+
+	mf = new MultiFlow();
+	mf->init();
+
+	for (auto& cv : clustVec) {
+		mf->addChargStationAndUAV_distributed(*(cv->clusterHead), cv->clusterUAV);
+	}
+	for (auto& s : sensList) {
+		mf->addSensor(s);
+	}
+
+	//mf->init_treeMF(end_time, Generic::getInstance().timeSlot);
+	mf->init_matrix_treeMF();
+	mf->run_tree_multiflow_distr(end_time);
+
+}
+
+
+void Simulator::finish_tree_multiflow_distr(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &sensList, std::list<Readings *> &allReadings) {
+	if (!Generic::getInstance().statFilename.empty()) {
+
+		std::ofstream ofs (Generic::getInstance().statFilename, std::ofstream::out | std::ofstream::app);
+		if (ofs.is_open()) {
+
+			double lifetimeSec = mf->getLastSensorRead();
+			double lifetimeHour = ((double) lifetimeSec) / 3600.0;
+			double lifetimeDay = ((double) lifetimeSec) / 86400.0;
+			ofs << "FINISH LifetimeSecs " << lifetimeSec << endl;
+			ofs << "FINISH LifetimeDays " << lifetimeDay << endl;
+
+			double index = mf->calcIndex_Tree();
+			ofs << "FINISH Index " << index << endl;
+			ofs << "FINISH IndexOverHour " << (index / lifetimeHour) << endl;
+			ofs << "FINISH IndexOverDay " << (index / lifetimeDay) << endl;
 
 		}
 	}

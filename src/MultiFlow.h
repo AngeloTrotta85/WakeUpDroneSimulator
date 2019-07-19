@@ -106,6 +106,8 @@ public:
 public:
 	Sensor* sens;
 	list<SensorRead> readings;
+	list<SensorRead> real_readings;
+	list<SensorRead> real_wakeup;
 	double lastTimestamp;
 	int lastTimestamp_tslot;
 
@@ -156,11 +158,13 @@ public:
 	typedef struct neighUAV {
 		UavDistributed *uav;
 		double lastTimeStamp;
+		int lastTimeStamp_tslot;
 	} neighUAV;
 
 	typedef struct sensElem {
 		SensorNode *sens;
 		double lastTimeStamp;
+		int lastTimeStamp_tslot;
 		long double lastResidualEnergy;
 	} sensElem;
 
@@ -172,6 +176,7 @@ public:
 	list<SensorNode *> activeTSP;
 
 	bool tsp2update;
+	int rechargeBulk;
 
 	uavState us;
 };
@@ -195,6 +200,7 @@ public:
 	void run(int end_time);
 	void run_distributed(double end_time);
 	void run_tree_multiflow(double end_time);
+	void run_tree_multiflow_distr(double end_time);
 
 	void init(void);
 	void init_treeMF(double endTS, double timeoffset);
@@ -237,7 +243,7 @@ public:
 			SensorNode *sj, MyCoord startPoint, MyCoord endPoint, double &tsp_time, double &tsp_energy_cost);
 
 	void calculateTSP_and_UpdateMF(ChargingNode *leftmost);
-	void calculateTreeTSP_and_UpdateMF(ChargingNode *leftmost, double end_time);
+	void calculateTreeBSF_and_UpdateMF(ChargingNode *leftmost, double end_time);
 
 	double calcPowEta(int t);
 	double calcPowEtaSens(double e, double t);
@@ -253,6 +259,7 @@ public:
 	double calculateMatrixEnergy(int id1, int id2);
 	void calculateBSF(list<SensorNode *> &path, ChargingNode *cn, double tk, int tk_tslot, double uav_e);
 	double calculateLossBSF(list<pair<int,int>> &phi, SensorNode *sn, int tm_tslot);
+	void activateBSFandRecharge(ChargingNode *cnode, list<SensorNode *> &tsp);
 
 public:
 	void initEfficiencyMap(void);
@@ -265,6 +272,14 @@ public:
 
 	double getLastSensorRead(void);
 	double calcIndex(void);
+
+
+	double getLastSensorRead_Tree(void);
+	double calcLossSensorOriginal_Tree(SensorNode *s_check, list<SensorNode *> &sList, int texp);
+	double calcIndex_Tree(void);
+	bool updateSensorsEnergy_Tree(int starttime, int endtime);
+
+	void run_uav_tree(UavDistributed *uav, double simTime, int simTime_tslot) ;
 
 	void writeHitmaps_distr(std::string filename);
 	void writeHitmaps_multiflow(std::string filename);

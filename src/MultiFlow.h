@@ -168,10 +168,18 @@ public:
 		long double lastResidualEnergy;
 	} sensElem;
 
+	typedef struct sensElemTree {
+		SensorNode *sens;
+		list<int> timestamp_read_tslot;
+		list<double> timestamp_read;
+		long double lastResidualEnergy;
+	} sensElemTree;
+
 public:
 	ChargingNode *cn;
 	map<int, neighUAV> neighMap;
 	map<int, sensElem> sensMap;
+	map<int, sensElemTree> sensMapTree;
 
 	list<SensorNode *> activeTSP;
 
@@ -191,7 +199,17 @@ public:
 	} wakeupVal;
 
 public:
-	MultiFlow();
+	typedef enum {
+		ALGO_BSF,
+		ALGO_BSF_DISTANCE,
+		ALGO_BSF_ENERGY,
+		ALGO_DSF,
+		ALGO_DSF_DISTANCE,
+		ALGO_DSF_ENERGY
+	} Algo_type;
+
+public:
+	MultiFlow(Algo_type at);
 
 	void addSensor(Sensor *s);
 	void addChargStationAndUAV(MyCoord c, UAV *u);
@@ -257,9 +275,18 @@ public:
 
 	int calculateMatrixTimeSlot(int id1, int id2);
 	double calculateMatrixEnergy(int id1, int id2);
-	void calculateBSF(list<SensorNode *> &path, ChargingNode *cn, double tk, int tk_tslot, double uav_e);
-	double calculateLossBSF(list<pair<int,int>> &phi, SensorNode *sn, int tm_tslot);
+	double calculateLossBSF(list<pair<int,int>> &phi, SensorNode *sn, int tm_tslot, bool centralized, UavDistributed *uav);
 	void activateBSFandRecharge(ChargingNode *cnode, list<SensorNode *> &tsp);
+
+	void calculateBSF(list<SensorNode *> &path, ChargingNode *cn, double tk, int tk_tslot, double uav_e, bool centralized, UavDistributed *uav);
+	void calculateBSF_distance(list<SensorNode *> &path, ChargingNode *cn, double tk, int tk_tslot, double uav_e, bool centralized, UavDistributed *uav);
+	void calculateBSF_energy(list<SensorNode *> &path, ChargingNode *cn, double tk, int tk_tslot, double uav_e, bool centralized, UavDistributed *uav);
+
+	void calculateDSF(list<SensorNode *> &path, ChargingNode *cn, double tk, int tk_tslot, double uav_e, bool centralized, UavDistributed *uav);
+	void calculateDSF_distance(list<SensorNode *> &path, ChargingNode *cn, double tk, int tk_tslot, double uav_e, bool centralized, UavDistributed *uav);
+	void calculateDSF_energy(list<SensorNode *> &path, ChargingNode *cn, double tk, int tk_tslot, double uav_e, bool centralized, UavDistributed *uav);
+
+	void calculatePath(list<SensorNode *> &path, ChargingNode *cn, double tk, int tk_tslot, double uav_e, bool centralized, UavDistributed *uav);
 
 public:
 	void initEfficiencyMap(void);
@@ -310,6 +337,8 @@ private:
 
 	double pWU;
 	wakeupVal wuVal;
+
+	Algo_type mfAlgoType;
 };
 
 #endif /* MULTIFLOW_H_ */

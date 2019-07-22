@@ -85,6 +85,7 @@ public:
 	void setMainAlgo(std::string algotype_main);
 	void setClusteringAlgo(std::string algotype_clustering);
 	void setTSPAlgo(std::string algotype_tsp);
+	void setAlgoType(MultiFlow::Algo_type algotype);
 
 	int getEndTime() const { return end_time; }
 	int getSimulationTime() const { return simulation_time; }
@@ -117,6 +118,7 @@ private:
 	Simu_type simtype;
 
 	MultiFlow *mf;
+	MultiFlow::Algo_type mfAT;
 };
 
 #endif /* SIMULATOR_H_ */

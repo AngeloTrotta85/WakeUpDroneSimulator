@@ -115,6 +115,10 @@ void Simulator::setClusteringAlgo(std::string algotype_clustering) {
 	}
 }
 
+void Simulator::setAlgoType(MultiFlow::Algo_type algotype) {
+	mfAT = algotype;
+}
+
 void Simulator::setTSPAlgo(std::string algotype_tsp) {
 	if (!algotype_tsp.empty()) {
 		if (algotype_tsp.compare("frTSP") == 0) {
@@ -625,7 +629,7 @@ void Simulator::run_multiflow(std::vector<CoordCluster *> &clustVec, std::list<S
 		}
 	}
 
-	mf = new MultiFlow();
+	mf = new MultiFlow(mfAT);
 	mf->init();
 
 	for (auto& cv : clustVec) {
@@ -684,7 +688,7 @@ void Simulator::run_distributed(std::vector<CoordCluster *> &clustVec, std::list
 		}
 	}
 
-	mf = new MultiFlow();
+	mf = new MultiFlow(mfAT);
 	mf->init();
 
 	for (auto& cv : clustVec) {
@@ -747,7 +751,7 @@ void Simulator::run_tree_multiflow(std::vector<CoordCluster *> &clustVec, std::l
 		}
 	}
 
-	mf = new MultiFlow();
+	mf = new MultiFlow(mfAT);
 	mf->init();
 
 	for (auto& cv : clustVec) {
@@ -818,7 +822,7 @@ void Simulator::run_tree_multiflow_distr(std::vector<CoordCluster *> &clustVec, 
 		}
 	}
 
-	mf = new MultiFlow();
+	mf = new MultiFlow(mfAT);
 	mf->init();
 
 	for (auto& cv : clustVec) {

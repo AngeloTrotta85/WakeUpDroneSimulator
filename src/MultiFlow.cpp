@@ -10,11 +10,12 @@
 #include "RandomGenerator.h"
 #include "Loss.h"
 
-MultiFlow::MultiFlow() {
+MultiFlow::MultiFlow(Algo_type at) {
 	actSensorTimeStamp = 0;
 	actUAVTimeStamp = 0;
 
 	pWU = 0;
+	mfAlgoType = at;
 }
 
 void MultiFlow::addSensor(Sensor *s) {
@@ -1343,6 +1344,29 @@ void MultiFlow::updateNeighMaps(double timenow) {
 							toUpdate = true;
 						}
 					}
+
+					//update sensor timestamp V2
+					for (auto& s2 : u2->sensMapTree) {
+						for (auto& c2 : s2.second.timestamp_read_tslot) {
+							bool found = false;
+							for (auto& c1 : u1->sensMapTree[s2.first].timestamp_read_tslot) {
+								if (c1 == c2) {
+									found = true;
+									break;
+								}
+							}
+							if (!found) {
+								u1->sensMapTree[s2.first].timestamp_read_tslot.push_back(c2);
+								u1->sensMapTree[s2.first].timestamp_read.push_back(((double) c2) * Generic::getInstance().timeSlot);
+								toUpdate = true;
+							}
+						}
+
+						if (s2.second.lastResidualEnergy < u1->sensMapTree[s2.first].lastResidualEnergy) {
+							u1->sensMapTree[s2.first].lastResidualEnergy = s2.second.lastResidualEnergy;
+							toUpdate = true;
+						}
+					}
 				}
 				else {
 					if (u1->neighMap.count(u2->cn->id) > 0) {
@@ -2393,11 +2417,12 @@ void MultiFlow::calculateTreeBSF_and_UpdateMF(ChargingNode *leftmost, double end
 				(RandomGenerator::getInstance().getRealUniform(0, 1) <= checkNum) ) {
 
 			//cout << "Calculating BSF!!!" << endl << flush;
-			calculateBSF(bestTSP,
+			calculatePath(bestTSP,
 					leftmost,
 					leftmost->lastTimestamp,
 					leftmost->lastTimestamp_tslot,
-					leftmost->u->residual_energy);
+					leftmost->u->residual_energy,
+					true, nullptr);
 
 			//cout << "Calculated BSF!!! - " << flush;
 			//for (auto& bsf : bestTSP) {
@@ -2424,8 +2449,37 @@ void MultiFlow::calculateTreeBSF_and_UpdateMF(ChargingNode *leftmost, double end
 }
 
 
+void MultiFlow::calculatePath(list<SensorNode *> &path, ChargingNode *cn, double tk, int tk_tslot, double uav_e, bool centralized, UavDistributed *uav) {
+	switch (mfAlgoType) {
+		case ALGO_BSF:
+		default:
+			calculateBSF(path, cn, tk, tk_tslot, uav_e, centralized, uav);
+			break;
 
-void MultiFlow::calculateBSF(list<SensorNode *> &path, ChargingNode *cn, double tk, int tk_tslot, double uav_e) {
+		case ALGO_BSF_DISTANCE:
+			calculateBSF_distance(path, cn, tk, tk_tslot, uav_e, centralized, uav);
+			break;
+
+		case ALGO_BSF_ENERGY:
+			calculateBSF_energy(path, cn, tk, tk_tslot, uav_e, centralized, uav);
+			break;
+
+		case ALGO_DSF:
+			calculateDSF(path, cn, tk, tk_tslot, uav_e, centralized, uav);
+			break;
+
+		case ALGO_DSF_DISTANCE:
+			calculateDSF_distance(path, cn, tk, tk_tslot, uav_e, centralized, uav);
+			break;
+
+		case ALGO_DSF_ENERGY:
+			calculateDSF_energy(path, cn, tk, tk_tslot, uav_e, centralized, uav);
+			break;
+	}
+}
+
+
+void MultiFlow::calculateDSF(list<SensorNode *> &path, ChargingNode *cn, double tk, int tk_tslot, double uav_e, bool centralized, UavDistributed *uav) {
 	list<pair<int, int>> q;
 
 	map<pair<int,int>, double> energymap;
@@ -2449,7 +2503,441 @@ void MultiFlow::calculateBSF(list<SensorNode *> &path, ChargingNode *cn, double 
 		for (auto& s : sens_map) {
 			if (s.second->sens->id != qt_pair.first) {
 				int tm_tslot = qt_pair.second + mfTreeMatrix_timeslot[qt_pair.first][s.second->sens->id];
-				allSens.push_back(make_pair(s.second, calculateLossBSF(pathmap[qt_pair], s.second, tm_tslot)));
+				allSens.push_back(make_pair(s.second, calculateLossBSF(pathmap[qt_pair], s.second, tm_tslot, centralized, uav)));
+			}
+		}
+		allSens.sort(MultiFlow::sortEdgesBSF);
+		/*for (auto& pr : allSens){
+			cout << "S" << pr.first->sens->id << "|" << pr.second << " ";
+		}
+		cout << endl;*/
+
+		for (auto& sj : allSens) {
+			int tm_tslot = qt_pair.second + mfTreeMatrix_timeslot[qt_pair.first][sj.first->sens->id];
+			double residualAfter = energymap[qt_pair]
+									- mfTreeMatrix_energy[qt_pair.first][sj.first->sens->id]
+									- mfTreeMatrix_energy[sj.first->sens->id][cn->u->id];
+			pair<int, int> sj_pair = make_pair(sj.first->sens->id, tm_tslot);
+
+			if ( (pathmap.count(sj_pair) == 0) && (residualAfter > 0) ){
+				q.push_back(sj_pair);
+
+				pathmap[sj_pair] = list<pair<int,int>>();
+				for (auto& oldp : pathmap[qt_pair]) {
+					pathmap[sj_pair].push_back(oldp);
+				}
+				pathmap[sj_pair].push_back(sj_pair);
+
+				energymap[sj_pair] = energymap[qt_pair] - mfTreeMatrix_energy[qt_pair.first][sj_pair.first];
+
+				llist.remove(qt_pair);
+				llist.push_back(sj_pair);
+
+				break;
+			}
+		}
+	}
+
+	pair<int, int> final_pair = make_pair(-1, -1);
+	double final_gain = 0;
+
+	for (auto& stprime : llist) {
+		double sumgain = 0;
+
+		for (auto& stpath : pathmap[stprime]) {
+			sumgain += 1.0 - calculateLossBSF(pathmap[stprime], sens_map[stpath.first], stpath.second, centralized, uav);
+		}
+
+		if(sumgain > final_gain) {
+			final_pair = stprime;
+			final_gain = sumgain;
+		}
+	}
+
+	path.clear();
+	for (auto& f : pathmap[final_pair]) {
+		path.push_back(sens_map[f.first]);
+	}
+}
+
+
+void MultiFlow::calculateDSF_distance(list<SensorNode *> &path, ChargingNode *cn, double tk, int tk_tslot, double uav_e, bool centralized, UavDistributed *uav) {
+	list<pair<int, int>> q;
+
+	map<pair<int,int>, double> energymap;
+	list<pair<int, int>> llist;
+	map<pair<int,int>, list<pair<int,int>>> pathmap;
+	//map<pair<int,int>, list<pair<int,int>>> phimap;
+
+	//init
+	energymap[make_pair(cn->u->id, tk_tslot)] = uav_e;
+	llist.push_back(make_pair(cn->u->id, tk_tslot));
+	pathmap[make_pair(cn->u->id, tk_tslot)] = list<pair<int,int>>();
+	//phimap[make_pair(cn->u->id, tk_tslot)] = list<pair<int,int>>();
+
+	q.push_back(make_pair(cn->u->id, tk_tslot));
+
+	while (!q.empty()) {
+		pair<int, int> qt_pair = q.front();
+		q.pop_front();
+
+		list<pair<SensorNode *, double>> allSens;
+		for (auto& s : sens_map) {
+			if (s.second->sens->id != qt_pair.first) {
+				if (Sensor::isSensorID(qt_pair.first)) {
+					allSens.push_back(make_pair(s.second, s.second->sens->coord.distance(sens_map[qt_pair.first]->sens->coord)));
+				}
+				else {
+					allSens.push_back(make_pair(s.second, s.second->sens->coord.distance(cn->u->recharge_coord)));
+				}
+			}
+		}
+		allSens.sort(MultiFlow::sortEdgesBSF);
+		/*for (auto& pr : allSens){
+			cout << "S" << pr.first->sens->id << "|" << pr.second << " ";
+		}
+		cout << endl;*/
+
+		for (auto& sj : allSens) {
+			int tm_tslot = qt_pair.second + mfTreeMatrix_timeslot[qt_pair.first][sj.first->sens->id];
+			double residualAfter = energymap[qt_pair]
+									- mfTreeMatrix_energy[qt_pair.first][sj.first->sens->id]
+									- mfTreeMatrix_energy[sj.first->sens->id][cn->u->id];
+			pair<int, int> sj_pair = make_pair(sj.first->sens->id, tm_tslot);
+
+			if ( (pathmap.count(sj_pair) == 0) && (residualAfter > 0) ){
+				q.push_back(sj_pair);
+
+				pathmap[sj_pair] = list<pair<int,int>>();
+				for (auto& oldp : pathmap[qt_pair]) {
+					pathmap[sj_pair].push_back(oldp);
+				}
+				pathmap[sj_pair].push_back(sj_pair);
+
+				energymap[sj_pair] = energymap[qt_pair] - mfTreeMatrix_energy[qt_pair.first][sj_pair.first];
+
+				llist.remove(qt_pair);
+				llist.push_back(sj_pair);
+
+				break;
+			}
+		}
+	}
+
+	pair<int, int> final_pair = make_pair(-1, -1);
+	double final_gain = 0;
+
+	for (auto& stprime : llist) {
+		double sumgain = 0;
+
+		for (auto& stpath : pathmap[stprime]) {
+			sumgain += 1.0 - calculateLossBSF(pathmap[stprime], sens_map[stpath.first], stpath.second, centralized, uav);
+		}
+
+		if(sumgain > final_gain) {
+			final_pair = stprime;
+			final_gain = sumgain;
+		}
+	}
+
+	path.clear();
+	for (auto& f : pathmap[final_pair]) {
+		path.push_back(sens_map[f.first]);
+	}
+}
+
+
+void MultiFlow::calculateDSF_energy(list<SensorNode *> &path, ChargingNode *cn, double tk, int tk_tslot, double uav_e, bool centralized, UavDistributed *uav) {
+	list<pair<int, int>> q;
+
+	map<pair<int,int>, double> energymap;
+	list<pair<int, int>> llist;
+	map<pair<int,int>, list<pair<int,int>>> pathmap;
+	//map<pair<int,int>, list<pair<int,int>>> phimap;
+
+	//init
+	energymap[make_pair(cn->u->id, tk_tslot)] = uav_e;
+	llist.push_back(make_pair(cn->u->id, tk_tslot));
+	pathmap[make_pair(cn->u->id, tk_tslot)] = list<pair<int,int>>();
+	//phimap[make_pair(cn->u->id, tk_tslot)] = list<pair<int,int>>();
+
+	q.push_back(make_pair(cn->u->id, tk_tslot));
+
+	while (!q.empty()) {
+		pair<int, int> qt_pair = q.front();
+		q.pop_front();
+
+		list<pair<SensorNode *, double>> allSens;
+		for (auto& s : sens_map) {
+			if (s.second->sens->id != qt_pair.first) {
+				if (centralized){
+					allSens.push_back(make_pair(s.second, s.second->sens->residual_energy));
+				}
+				else {
+					allSens.push_back(make_pair(s.second, uav->sensMapTree[s.second->sens->id].lastResidualEnergy));
+				}
+			}
+		}
+		allSens.sort(MultiFlow::sortEdgesBSF);
+		allSens.reverse();
+		/*for (auto& pr : allSens){
+			cout << "S" << pr.first->sens->id << "|" << pr.second << " ";
+		}
+		cout << endl;*/
+
+		for (auto& sj : allSens) {
+			int tm_tslot = qt_pair.second + mfTreeMatrix_timeslot[qt_pair.first][sj.first->sens->id];
+			double residualAfter = energymap[qt_pair]
+									- mfTreeMatrix_energy[qt_pair.first][sj.first->sens->id]
+									- mfTreeMatrix_energy[sj.first->sens->id][cn->u->id];
+			pair<int, int> sj_pair = make_pair(sj.first->sens->id, tm_tslot);
+
+			if ( (pathmap.count(sj_pair) == 0) && (residualAfter > 0) ){
+				q.push_back(sj_pair);
+
+				pathmap[sj_pair] = list<pair<int,int>>();
+				for (auto& oldp : pathmap[qt_pair]) {
+					pathmap[sj_pair].push_back(oldp);
+				}
+				pathmap[sj_pair].push_back(sj_pair);
+
+				energymap[sj_pair] = energymap[qt_pair] - mfTreeMatrix_energy[qt_pair.first][sj_pair.first];
+
+				llist.remove(qt_pair);
+				llist.push_back(sj_pair);
+
+				break;
+			}
+		}
+	}
+
+	pair<int, int> final_pair = make_pair(-1, -1);
+	double final_gain = 0;
+
+	for (auto& stprime : llist) {
+		double sumgain = 0;
+
+		for (auto& stpath : pathmap[stprime]) {
+			sumgain += 1.0 - calculateLossBSF(pathmap[stprime], sens_map[stpath.first], stpath.second, centralized, uav);
+		}
+
+		if(sumgain > final_gain) {
+			final_pair = stprime;
+			final_gain = sumgain;
+		}
+	}
+
+	path.clear();
+	for (auto& f : pathmap[final_pair]) {
+		path.push_back(sens_map[f.first]);
+	}
+}
+
+
+void MultiFlow::calculateBSF_energy(list<SensorNode *> &path, ChargingNode *cn, double tk, int tk_tslot, double uav_e, bool centralized, UavDistributed *uav) {
+	list<pair<int, int>> q;
+
+	map<pair<int,int>, double> energymap;
+	list<pair<int, int>> llist;
+	map<pair<int,int>, list<pair<int,int>>> pathmap;
+	//map<pair<int,int>, list<pair<int,int>>> phimap;
+
+	//init
+	energymap[make_pair(cn->u->id, tk_tslot)] = uav_e;
+	llist.push_back(make_pair(cn->u->id, tk_tslot));
+	pathmap[make_pair(cn->u->id, tk_tslot)] = list<pair<int,int>>();
+	//phimap[make_pair(cn->u->id, tk_tslot)] = list<pair<int,int>>();
+
+	q.push_back(make_pair(cn->u->id, tk_tslot));
+
+	while (!q.empty()) {
+		pair<int, int> qt_pair = q.front();
+		q.pop_front();
+
+		list<pair<SensorNode *, double>> allSens;
+		for (auto& s : sens_map) {
+			if (s.second->sens->id != qt_pair.first) {
+				if (centralized){
+					allSens.push_back(make_pair(s.second, s.second->sens->residual_energy));
+				}
+				else {
+					allSens.push_back(make_pair(s.second, uav->sensMapTree[s.second->sens->id].lastResidualEnergy));
+				}
+			}
+		}
+		allSens.sort(MultiFlow::sortEdgesBSF);
+		allSens.reverse();
+		/*for (auto& pr : allSens){
+			cout << "S" << pr.first->sens->id << "|" << pr.second << " ";
+		}
+		cout << endl;*/
+
+		for (auto& sj : allSens) {
+			int tm_tslot = qt_pair.second + mfTreeMatrix_timeslot[qt_pair.first][sj.first->sens->id];
+			double residualAfter = energymap[qt_pair]
+									- mfTreeMatrix_energy[qt_pair.first][sj.first->sens->id]
+									- mfTreeMatrix_energy[sj.first->sens->id][cn->u->id];
+			pair<int, int> sj_pair = make_pair(sj.first->sens->id, tm_tslot);
+
+			if ( (pathmap.count(sj_pair) == 0) && (residualAfter > 0) ){
+				q.push_back(sj_pair);
+
+				pathmap[sj_pair] = list<pair<int,int>>();
+				for (auto& oldp : pathmap[qt_pair]) {
+					pathmap[sj_pair].push_back(oldp);
+				}
+				pathmap[sj_pair].push_back(sj_pair);
+
+				energymap[sj_pair] = energymap[qt_pair] - mfTreeMatrix_energy[qt_pair.first][sj_pair.first];
+
+				llist.remove(qt_pair);
+				llist.push_back(sj_pair);
+
+				break;
+			}
+		}
+	}
+
+	pair<int, int> final_pair = make_pair(-1, -1);
+	double final_dist = numeric_limits<double>::max();
+
+	for (auto& stprime : llist) {
+		double sumdist = 0;
+		MyCoord lastCoord = cn->pos;
+
+		for (auto& stpath : pathmap[stprime]) {
+			sumdist += lastCoord.distance(sens_map[stpath.first]->sens->coord);
+			lastCoord = sens_map[stpath.first]->sens->coord;
+		}
+		sumdist += lastCoord.distance(cn->pos);
+
+		if(sumdist < final_dist) {
+			final_pair = stprime;
+			final_dist = sumdist;
+		}
+	}
+
+	path.clear();
+	for (auto& f : pathmap[final_pair]) {
+		path.push_back(sens_map[f.first]);
+	}
+}
+
+
+void MultiFlow::calculateBSF_distance(list<SensorNode *> &path, ChargingNode *cn, double tk, int tk_tslot, double uav_e, bool centralized, UavDistributed *uav) {
+	list<pair<int, int>> q;
+
+	map<pair<int,int>, double> energymap;
+	list<pair<int, int>> llist;
+	map<pair<int,int>, list<pair<int,int>>> pathmap;
+	//map<pair<int,int>, list<pair<int,int>>> phimap;
+
+	//init
+	energymap[make_pair(cn->u->id, tk_tslot)] = uav_e;
+	llist.push_back(make_pair(cn->u->id, tk_tslot));
+	pathmap[make_pair(cn->u->id, tk_tslot)] = list<pair<int,int>>();
+	//phimap[make_pair(cn->u->id, tk_tslot)] = list<pair<int,int>>();
+
+	q.push_back(make_pair(cn->u->id, tk_tslot));
+
+	while (!q.empty()) {
+		pair<int, int> qt_pair = q.front();
+		q.pop_front();
+
+		list<pair<SensorNode *, double>> allSens;
+		for (auto& s : sens_map) {
+			if (s.second->sens->id != qt_pair.first) {
+				if (Sensor::isSensorID(qt_pair.first)) {
+					allSens.push_back(make_pair(s.second, s.second->sens->coord.distance(sens_map[qt_pair.first]->sens->coord)));
+				}
+				else {
+					allSens.push_back(make_pair(s.second, s.second->sens->coord.distance(cn->u->recharge_coord)));
+				}
+			}
+		}
+		allSens.sort(MultiFlow::sortEdgesBSF);
+		/*for (auto& pr : allSens){
+			cout << "S" << pr.first->sens->id << "|" << pr.second << " ";
+		}
+		cout << endl;*/
+
+		for (auto& sj : allSens) {
+			int tm_tslot = qt_pair.second + mfTreeMatrix_timeslot[qt_pair.first][sj.first->sens->id];
+			double residualAfter = energymap[qt_pair]
+									- mfTreeMatrix_energy[qt_pair.first][sj.first->sens->id]
+									- mfTreeMatrix_energy[sj.first->sens->id][cn->u->id];
+			pair<int, int> sj_pair = make_pair(sj.first->sens->id, tm_tslot);
+
+			if ( (pathmap.count(sj_pair) == 0) && (residualAfter > 0) ){
+				q.push_back(sj_pair);
+
+				pathmap[sj_pair] = list<pair<int,int>>();
+				for (auto& oldp : pathmap[qt_pair]) {
+					pathmap[sj_pair].push_back(oldp);
+				}
+				pathmap[sj_pair].push_back(sj_pair);
+
+				energymap[sj_pair] = energymap[qt_pair] - mfTreeMatrix_energy[qt_pair.first][sj_pair.first];
+
+				llist.remove(qt_pair);
+				llist.push_back(sj_pair);
+
+				break;
+			}
+		}
+	}
+
+	pair<int, int> final_pair = make_pair(-1, -1);
+	double final_dist = numeric_limits<double>::max();
+
+	for (auto& stprime : llist) {
+		double sumdist = 0;
+		MyCoord lastCoord = cn->pos;
+
+		for (auto& stpath : pathmap[stprime]) {
+			sumdist += lastCoord.distance(sens_map[stpath.first]->sens->coord);
+			lastCoord = sens_map[stpath.first]->sens->coord;
+		}
+		sumdist += lastCoord.distance(cn->pos);
+
+		if(sumdist < final_dist) {
+			final_pair = stprime;
+			final_dist = sumdist;
+		}
+	}
+
+	path.clear();
+	for (auto& f : pathmap[final_pair]) {
+		path.push_back(sens_map[f.first]);
+	}
+}
+
+
+void MultiFlow::calculateBSF(list<SensorNode *> &path, ChargingNode *cn, double tk, int tk_tslot, double uav_e, bool centralized, UavDistributed *uav) {
+	list<pair<int, int>> q;
+
+	map<pair<int,int>, double> energymap;
+	list<pair<int, int>> llist;
+	map<pair<int,int>, list<pair<int,int>>> pathmap;
+	//map<pair<int,int>, list<pair<int,int>>> phimap;
+
+	//init
+	energymap[make_pair(cn->u->id, tk_tslot)] = uav_e;
+	llist.push_back(make_pair(cn->u->id, tk_tslot));
+	pathmap[make_pair(cn->u->id, tk_tslot)] = list<pair<int,int>>();
+	//phimap[make_pair(cn->u->id, tk_tslot)] = list<pair<int,int>>();
+
+	q.push_back(make_pair(cn->u->id, tk_tslot));
+
+	while (!q.empty()) {
+		pair<int, int> qt_pair = q.front();
+		q.pop_front();
+
+		list<pair<SensorNode *, double>> allSens;
+		for (auto& s : sens_map) {
+			if (s.second->sens->id != qt_pair.first) {
+				int tm_tslot = qt_pair.second + mfTreeMatrix_timeslot[qt_pair.first][s.second->sens->id];
+				allSens.push_back(make_pair(s.second, calculateLossBSF(pathmap[qt_pair], s.second, tm_tslot, centralized, uav)));
 			}
 		}
 		allSens.sort(MultiFlow::sortEdgesBSF);
@@ -2489,7 +2977,7 @@ void MultiFlow::calculateBSF(list<SensorNode *> &path, ChargingNode *cn, double 
 
 						//cout << "<" << stprime.first << ", " << stprime.second << "> -> ";
 						for (auto& stpath : pathmap[stprime]) {
-							double actgain = 1.0 - calculateLossBSF(pathmap[stprime], sens_map[stpath.first], stpath.second);
+							double actgain = 1.0 - calculateLossBSF(pathmap[stprime], sens_map[stpath.first], stpath.second, centralized, uav);
 							//cout << "S" << stpath.first << "|T" << stpath.second << "|" << actgain << " ";
 							sumgain += actgain;
 						}
@@ -2517,7 +3005,7 @@ void MultiFlow::calculateBSF(list<SensorNode *> &path, ChargingNode *cn, double 
 		double sumgain = 0;
 
 		for (auto& stpath : pathmap[stprime]) {
-			sumgain += 1.0 - calculateLossBSF(pathmap[stprime], sens_map[stpath.first], stpath.second);
+			sumgain += 1.0 - calculateLossBSF(pathmap[stprime], sens_map[stpath.first], stpath.second, centralized, uav);
 		}
 
 		if(sumgain > final_gain) {
@@ -2532,7 +3020,7 @@ void MultiFlow::calculateBSF(list<SensorNode *> &path, ChargingNode *cn, double 
 	}
 }
 
-double MultiFlow::calculateLossBSF(list<pair<int,int>> &phi, SensorNode *sn, int tm_tslot) {
+double MultiFlow::calculateLossBSF(list<pair<int,int>> &phi, SensorNode *sn, int tm_tslot, bool centralized, UavDistributed *uav) {
 	double ris = 0;
 
 	std::list<Sensor *> ssList;
@@ -2542,14 +3030,47 @@ double MultiFlow::calculateLossBSF(list<pair<int,int>> &phi, SensorNode *sn, int
 
 	// check over the active readings
 	for (auto& s : sens_list) {
-		for (auto& r : s->readings) {
-			double actLoss = Loss::algebraic_sum(
-					Loss::getInstance().calculate_loss_distance(s->sens, sn->sens)
+		if (centralized){
+			for (auto& r : s->readings) {
+				double actLoss = Loss::algebraic_sum(
+						Loss::getInstance().calculate_loss_distance(s->sens, sn->sens)
 						* Loss::getInstance().calculate_loss_time(r.readTime, tm_tslot),
-					Loss::getInstance().calculate_loss_energy(sn->sens, tm_tslot, ssList));
+						Loss::getInstance().calculate_loss_energy(sn->sens, tm_tslot, ssList));
 
-			if (actLoss > ris) {
-				ris = actLoss;
+				if (actLoss > ris) {
+					ris = actLoss;
+				}
+			}
+		}
+		else {
+			for (auto& r : uav->sensMapTree[s->sens->id].timestamp_read) {
+				list<double> eeList;
+				for (auto& ee : uav->sensMapTree){
+					if (ee.first != sn->sens->id) {
+						eeList.push_back(ee.second.lastResidualEnergy);
+					}
+				}
+				double actLoss = Loss::algebraic_sum(
+						Loss::getInstance().calculate_loss_distance(s->sens, sn->sens)
+						* Loss::getInstance().calculate_loss_time(r, tm_tslot),
+						Loss::getInstance().calculate_loss_energy_onNumber(uav->sensMapTree[sn->sens->id].lastResidualEnergy, tm_tslot, eeList));
+
+				double closestThenMe = 0;
+				double myDist = uav->cn->pos.distance(sn->sens->coord);
+				for (auto& u : uav->neighMap) {
+					if (u.second.uav->cn->pos.distance(sn->sens->coord) < myDist) {
+						closestThenMe += 1.0;
+					}
+				}
+
+				double discount = (closestThenMe + 1.0) / (((double) uav->neighMap.size()) + 1.0);
+				//cout << "        Inside calcLossSensor. Calculated discount: " << discount << endl << flush;
+
+				actLoss *= discount;
+
+				if (actLoss > ris) {
+					ris = actLoss;
+				}
 			}
 		}
 	}
@@ -2739,6 +3260,9 @@ void MultiFlow::run_tree_multiflow_distr(double end_time) {
 			uav->sensMap[s->sens->id].lastTimeStamp = sim_time;
 			uav->sensMap[s->sens->id].lastTimeStamp_tslot = sim_time_tslot;
 			uav->sensMap[s->sens->id].lastResidualEnergy = s->sens->residual_energy;
+
+			uav->sensMapTree[s->sens->id].sens = s;
+			uav->sensMap[s->sens->id].lastResidualEnergy = s->sens->residual_energy;
 		}
 
 		uav->us = UavDistributed::RECHARGING;
@@ -2752,7 +3276,7 @@ void MultiFlow::run_tree_multiflow_distr(double end_time) {
 
 
 		//cout << "Updating NeighMaps" << endl << flush;
-		//updateNeighMaps(sim_time);
+		updateNeighMaps(sim_time);
 		//cout << "End check UAVs AFTER updateNeighMaps" << endl << flush;
 
 
@@ -2786,7 +3310,7 @@ void MultiFlow::run_uav_tree(UavDistributed *uav, double simTime, int simTime_ts
 	switch (uav->us) {
 	case UavDistributed::MOVING:
 		//cout << "UAV " << uav->cn->u->id << " is in state MOVING" << endl << flush;
-		uav->cn->u->residual_energy -= Generic::getInstance().singleMotorPowerUAV * 4.0 * Generic::getInstance().timeSlot;
+		uav->cn->u->residual_energy -= Generic::getInstance().pUfly * Generic::getInstance().timeSlot;
 		if ((uav->activeTSP.size() == 0) && (uav->cn->u->actual_coord == uav->cn->pos)) {
 			//arrived back to the charging station
 			uav->cn->u->actual_coord = uav->cn->pos;	// set the exact position due to possible numerical error
@@ -2804,6 +3328,13 @@ void MultiFlow::run_uav_tree(UavDistributed *uav, double simTime, int simTime_ts
 				sn->accumulatedEnergy_uJ = 0;
 				uav->us = UavDistributed::WAKINGUP;
 				//cout << "UAV " << uav->cn->u->id << " moving on state WAKINGUP" << endl << flush;
+
+				//every time I set this reading
+				SensorNode::SensorRead sr;
+				sr.readTime = simTime;
+				sr.uav = uav->cn->u;
+				sn->readings.push_back(sr);
+
 			}
 			else {
 				// the sensor is being used by another UAV. Go to the next
@@ -2813,10 +3344,10 @@ void MultiFlow::run_uav_tree(UavDistributed *uav, double simTime, int simTime_ts
 		else {
 			MyCoord endP;
 
-			if (uav->tsp2update) {
+			/*if (uav->tsp2update) {
 				calculateTSP_distributed(uav, uav->cn->u->actual_coord, uav->cn->pos, simTime);
 				uav->tsp2update = false;
-			}
+			}*/
 
 			if (uav->activeTSP.size() == 0) endP = uav->cn->pos;
 			else endP = (*(uav->activeTSP.begin()))->sens->coord;
@@ -2849,19 +3380,37 @@ void MultiFlow::run_uav_tree(UavDistributed *uav, double simTime, int simTime_ts
 
 		if (sn->irradiatingUAV == uav->cn->u) {
 			// Ok I'm already irradiating
-			sn->accumulatedEnergy_uJ += wuVal.estimatedIrrEnergyPerSlot_uJ;
+			//sn->accumulatedEnergy_uJ += wuVal.estimatedIrrEnergyPerSlot_uJ;
 			sn->irradiatingTimeSlots++;
-			if (sn->accumulatedEnergy_uJ >= Generic::getInstance().energyToWakeUp) {
+			/*if (sn->accumulatedEnergy_uJ >= Generic::getInstance().energyToWakeUp) {
 				// OK the sensor wakes-up
 				uav->us = UavDistributed::STARTINGUP;
 				//cout << "UAV " << uav->cn->u->id << " moving on state STARTINGUP" << endl << flush;
 				sn->startupTimeSlots = 0;
 			}
-			else if(sn->irradiatingTimeSlots >= ceil(wuVal.maxTwakeup / Generic::getInstance().timeSlot)) {
-				// the sensor didn't wake-up within maxTwakeup time. Go to the next
-				uav->activeTSP.pop_front();
-				sn->irradiatingUAV = nullptr;
-				uav->us = UavDistributed::MOVING;
+			else */
+			if(sn->irradiatingTimeSlots >= ceil(Generic::getInstance().twakeup / Generic::getInstance().timeSlot)) {
+				// I irradiated, let's see if the sensor is woken-up
+				if (RandomGenerator::getInstance().getRealUniform(0, 1) <= Generic::getInstance().pwakeup) {
+					// OK the sensor wakes-up
+					uav->us = UavDistributed::STARTINGUP;
+					//cout << "UAV " << uav->cn->u->id << " moving on state STARTINGUP" << endl << flush;
+					sn->startupTimeSlots = 0;
+
+					//set node wake up the data
+					SensorNode::SensorRead sr;
+					sr.readTime = simTime;
+					sr.uav = uav->cn->u;
+					sn->real_wakeup.push_back(sr);
+
+					uav->sensMapTree[sn->sens->id].lastResidualEnergy = sn->sens->residual_energy;
+				}
+				else {
+					//no wake-up... go ahead
+					uav->activeTSP.pop_front();
+					sn->irradiatingUAV = nullptr;
+					uav->us = UavDistributed::MOVING;
+				}
 				//cout << "UAV " << uav->cn->u->id << " moving on state MOVING" << endl << flush;
 			}
 		}
@@ -2872,7 +3421,7 @@ void MultiFlow::run_uav_tree(UavDistributed *uav, double simTime, int simTime_ts
 
 	case UavDistributed::STARTINGUP:
 		//cout << "UAV " << uav->cn->u->id << " is in state STARTINGUP" << endl << flush;
-		uav->cn->u->residual_energy -= Generic::getInstance().singleMotorPowerUAV * 4.0 * Generic::getInstance().timeSlot;
+		uav->cn->u->residual_energy -= Generic::getInstance().pUfly * Generic::getInstance().timeSlot;
 		uav->cn->u->residual_energy -= Generic::getInstance().pUstartup * Generic::getInstance().timeSlot;
 
 		if (uav->activeTSP.empty()){
@@ -2894,7 +3443,7 @@ void MultiFlow::run_uav_tree(UavDistributed *uav, double simTime, int simTime_ts
 
 	case UavDistributed::READING:
 		//cout << "UAV " << uav->cn->u->id << " is in state READING" << endl << flush;
-		uav->cn->u->residual_energy -= Generic::getInstance().singleMotorPowerUAV * 4.0 * Generic::getInstance().timeSlot;
+		uav->cn->u->residual_energy -= Generic::getInstance().pUfly * Generic::getInstance().timeSlot;
 
 		if (uav->activeTSP.empty()){
 			cerr << "uav->activeTSP is empty in READING!" << endl;
@@ -2902,28 +3451,32 @@ void MultiFlow::run_uav_tree(UavDistributed *uav, double simTime, int simTime_ts
 		}
 		sn = *(uav->activeTSP.begin());
 
+		uav->cn->u->residual_energy -= (Generic::getInstance().pUrx +
+				(	(Generic::getInstance().pUtx - Generic::getInstance().pUrx) / Generic::getInstance().ttimeout
+				) ) * Generic::getInstance().timeSlot;
+
+		sn->sens->residual_energy -= (Generic::getInstance().pSrx +
+				(	(Generic::getInstance().pStx - Generic::getInstance().pSrx) / Generic::getInstance().ttimeout
+				) ) * Generic::getInstance().timeSlot;
+
 		sn->commTimeSlots++;
-		if(sn->commTimeSlots >= ceil(Generic::getInstance().ttimeout / Generic::getInstance().timeSlot)) {
-			// ending one timeout
-			uav->cn->u->residual_energy -= (Generic::getInstance().pUrx +
-					(	(Generic::getInstance().pUtx - Generic::getInstance().pUrx) /
-						ceil(Generic::getInstance().ttimeout / Generic::getInstance().timeSlot)
-					) ) * Generic::getInstance().timeSlot;
+		if(sn->commTimeSlots >= ceil((Generic::getInstance().ttimeout * Generic::getInstance().nr) / Generic::getInstance().timeSlot)) {
+			// ending nr timeout
 
-			sn->sens->residual_energy -= (Generic::getInstance().pSrx +
-					(	(Generic::getInstance().pStx - Generic::getInstance().pSrx) /
-						ceil(Generic::getInstance().ttimeout / Generic::getInstance().timeSlot)
-					) ) * Generic::getInstance().timeSlot;
-
-			sn->nCommAttempt++;
-			if (RandomGenerator::getInstance().getRealUniform(0, 1) <= wuVal.commProb) {
+			//sn->nCommAttempt++;
+			if (RandomGenerator::getInstance().getRealUniform(0, 1) <= Generic::getInstance().pcomunication) {
 				// ok successful data gathering
 
 				//read the data
-				SensorNode::SensorRead sr;
-				sr.readTime = simTime;
-				sr.uav = uav->cn->u;
-				sn->readings.push_back(sr);
+				SensorNode::SensorRead rsr;
+				rsr.readTime = simTime;
+				rsr.uav = uav->cn->u;
+				sn->real_readings.push_back(rsr);
+
+				uav->sensMapTree[sn->sens->id].timestamp_read.push_back(simTime);
+				uav->sensMapTree[sn->sens->id].timestamp_read_tslot.push_back(simTime_tslot);
+				uav->sensMapTree[sn->sens->id].lastResidualEnergy = sn->sens->residual_energy;
+
 				uav->sensMap[sn->sens->id].lastTimeStamp = simTime;
 
 				// update last read energy
@@ -2936,9 +3489,21 @@ void MultiFlow::run_uav_tree(UavDistributed *uav, double simTime, int simTime_ts
 				sn->irradiatingUAV = nullptr;
 				uav->us = UavDistributed::MOVING;
 				//cout << "UAV " << uav->cn->u->id << " moving on state MOVING" << endl << flush;
+
+				if (uav->tsp2update) {
+					//calculateTSP_distributed(uav, uav->cn->u->actual_coord, uav->cn->pos, simTime);
+					calculatePath(uav->activeTSP,
+							uav->cn,
+							uav->cn->lastTimestamp,
+							uav->cn->lastTimestamp_tslot,
+							uav->cn->u->residual_energy,
+							false, uav);
+					uav->tsp2update = false;
+				}
 			}
-			else if (sn->nCommAttempt >= Generic::getInstance().nr) {
+			else {
 				// too much attempts
+
 				// go away
 				sn->commTimeSlots = 0;
 				sn->nCommAttempt = 0;
@@ -2946,9 +3511,17 @@ void MultiFlow::run_uav_tree(UavDistributed *uav, double simTime, int simTime_ts
 				sn->irradiatingUAV = nullptr;
 				uav->us = UavDistributed::MOVING;
 				//cout << "UAV " << uav->cn->u->id << " moving on state MOVING" << endl << flush;
-			}
-			else {
-				sn->commTimeSlots = 0;	// start new attempt
+
+				if (uav->tsp2update) {
+					//calculateTSP_distributed(uav, uav->cn->u->actual_coord, uav->cn->pos, simTime);
+					calculatePath(uav->activeTSP,
+							uav->cn,
+							uav->cn->lastTimestamp,
+							uav->cn->lastTimestamp_tslot,
+							uav->cn->u->residual_energy,
+							false, uav);
+					uav->tsp2update = false;
+				}
 			}
 		}
 
@@ -2963,15 +3536,23 @@ void MultiFlow::run_uav_tree(UavDistributed *uav, double simTime, int simTime_ts
 			uav->cn->u->residual_energy = uav->cn->u->max_energy;
 		}
 
-		if (uav->cn->u->residual_energy >= uav->cn->u->max_energy) {
+		{
+			double batteryRatio = min(uav->cn->u->residual_energy / uav->cn->u->max_energy, 1.0);
+			double checkNum = pow(batteryRatio, Generic::getInstance().bsfExponent);
 
-			//cout << "  Start calculating TSP" << endl << flush;
-			calculateTSP_distributed(uav, uav->cn->pos, uav->cn->pos, simTime);
-			//calculateTSP_distributed_dummy(uav, uav->cn->pos, uav->cn->pos, simTime);
-			//cout << "  End calculating TSP" << endl << flush;
-			if (uav->activeTSP.size() > 0) {		// IDLE but calculated TSP... let's move!
-				uav->us = UavDistributed::MOVING;
-				//cout << "UAV " << uav->cn->u->id << " moving on state MOVING" << endl << flush;
+			if ( 	(uav->cn->u->residual_energy >= uav->cn->u->max_energy) ||
+					(RandomGenerator::getInstance().getRealUniform(0, 1) <= checkNum) ) {
+				calculatePath(uav->activeTSP,
+						uav->cn,
+						uav->cn->lastTimestamp,
+						uav->cn->lastTimestamp_tslot,
+						uav->cn->u->residual_energy,
+						false, uav);
+
+				if (uav->activeTSP.size() > 0) {		// IDLE but calculated TSP... let's move!
+					uav->us = UavDistributed::MOVING;
+					//cout << "UAV " << uav->cn->u->id << " moving on state MOVING" << endl << flush;
+				}
 			}
 		}
 		break;

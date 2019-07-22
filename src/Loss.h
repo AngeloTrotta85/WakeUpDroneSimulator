@@ -56,6 +56,7 @@ public:
 
 	double calculate_loss_energy_only(long double e, std::list<long double> &el);
 	double calculate_loss_energy(Sensor *se, int tk, std::list<Sensor *> &sl);
+	double calculate_loss_energy_onNumber(double e, int tk, std::list<double> &el);
 	double calculate_loss_distance(Sensor *s1, Sensor *s2);
 	double calculate_loss_time(int t1, int t2);
 	double calculate_loss_correlation(Sensor *se, int tk, std::list<Sensor *> &sl);

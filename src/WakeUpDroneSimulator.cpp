@@ -170,6 +170,7 @@ int main(int argc, char **argv) {
 	int time_N = 3600;
 	double timeSlot = 1;
 	Simulator::Simu_type st = Simulator::SIMU_NORMAL;
+	MultiFlow::Algo_type at = MultiFlow::ALGO_BSF;
 
 	// (constant k at predefined %) k = (ln(1/%))/x       (used 0.1%)
 	double kd = 0.002; //0.00460517;		//when 0.1? [0.00460517 at 500m] [0.1 at 26m][0.05 at 45m][0.02 at 115m][0.01 at 230m][0.005 at 460m]
@@ -297,6 +298,7 @@ int main(int argc, char **argv) {
 	const std::string &gain_antenna_rx = input.getCmdOption("-gRx");
 
 	const std::string &simu_type = input.getCmdOption("-st");
+	const std::string &algo_type = input.getCmdOption("-at");
 
 	const std::string &multiflow_t_startup = input.getCmdOption("-mfTstartup");
 	const std::string &multiflow_t_timeout = input.getCmdOption("-mfTtimeout");
@@ -448,6 +450,26 @@ int main(int argc, char **argv) {
 			st = Simulator::SIMU_TREE_MULTI_FLOW_DISTR;
 		}
 	}
+	if (!algo_type.empty()) {
+		if (algo_type.compare("bsf") == 0) {
+			at = MultiFlow::ALGO_BSF;
+		}
+		else if (algo_type.compare("bsfdist") == 0){
+			at = MultiFlow::ALGO_BSF_DISTANCE;
+		}
+		else if (algo_type.compare("bsfenergy") == 0){
+			at = MultiFlow::ALGO_BSF_ENERGY;
+		}
+		else if (algo_type.compare("dsf") == 0){
+			at = MultiFlow::ALGO_DSF;
+		}
+		else if (algo_type.compare("dsfdist") == 0){
+			at = MultiFlow::ALGO_DSF_DISTANCE;
+		}
+		else if (algo_type.compare("dsfenergy") == 0){
+			at = MultiFlow::ALGO_DSF_ENERGY;
+		}
+	}
 	if (!multiflow_t_startup.empty()) {
 		tsup = atof(multiflow_t_startup.c_str());
 	}
@@ -562,6 +584,7 @@ int main(int argc, char **argv) {
 	Simulator::getInstance().setMainAlgo(algotype_main);
 	Simulator::getInstance().setClusteringAlgo(algotype_clustering);
 	Simulator::getInstance().setTSPAlgo(algotype_tsp);
+	Simulator::getInstance().setAlgoType(at);
 	Simulator::getInstance().run(clustersVec, sensorsList, allReadings);
 	Simulator::getInstance().finish(clustersVec, sensorsList, allReadings);
 

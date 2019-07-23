@@ -9,9 +9,11 @@
 
 RandomGenerator::RandomGenerator(void) {
 	generator_rand = std::default_random_engine();
+	starting_seed = 0;
 }
 
 void RandomGenerator::setSeed(unsigned int seed) {
+	starting_seed = seed;
 	generator_rand.seed(seed);
 }
 

@@ -55,8 +55,13 @@ public:
         	//return ((1.0 / (sqrt(2.0 * M_PI * sigma2))) * exp());
         }
 
+	unsigned int getSeed() const {
+		return starting_seed;
+	}
+
 private:
 	std::default_random_engine generator_rand;
+	unsigned int starting_seed;
 };
 
 #endif /* RANDOMGENERATOR_H_ */

@@ -198,7 +198,7 @@ int main(int argc, char **argv) {
 
 	//Sensor parameters
 	double initEnergySensor = 3996;		// Joule -> 300mAh * 3.7Volt * 3.6
-	double sensorSelfDischarge = 3;		// Percentage per month (https://batteryuniversity.com/learn/article/elevating_self_discharge)
+	double sensorSelfDischarge = 8;		// Percentage per month (https://batteryuniversity.com/learn/article/elevating_self_discharge)
 	double eON = 0.000494;				// Joule -> from ICC
 	double eBOOT = 0.0075;				// Joule -> from ICC
 	bool fullRandomSensors = false;		// true to make random from 0 to MAX

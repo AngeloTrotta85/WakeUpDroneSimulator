@@ -231,8 +231,8 @@ int main(int argc, char **argv) {
 	double twu = 1;						// sec -> t_{wakeup}
 	double pwu = 1;						// probability of wake-up -> p_{wakeup}
 	double pcom = 1;					// probability of comunication -> p_{com}
-	double bsfExponent = 3.0;			// exponent for the probability to execute the BSF
-	double rechargeRatio = 0.1;			// percentage of recarge before trying to BSF
+	double bsfExponent = 4.0;			// exponent for the probability to execute the BSF
+	double rechargeRatio = 0.05;		// percentage of recarge before trying to BSF
 
 	//Statistics
 	int timeslots2log = 30;

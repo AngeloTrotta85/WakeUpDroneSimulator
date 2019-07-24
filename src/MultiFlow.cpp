@@ -1618,10 +1618,15 @@ double MultiFlow::calcLossSensor_distributed(SensorNode *sens, UavDistributed *u
 				}
 			}
 
-			double discount = (closestThenMe + 1.0) / (((double) uav->neighMap.size()) + 1.0);
+			//double discount = (closestThenMe + 1.0) / (((double) uav->neighMap.size()) + 1.0);
+			double penalty = 0.0;
+			if (uav->neighMap.size() > 0) {
+				penalty = closestThenMe / ((double) uav->neighMap.size());
+			}
 			//cout << "        Inside calcLossSensor. Calculated discount: " << discount << endl << flush;
 
-			actLoss *= discount;
+			//actLoss *= discount;
+			actLoss = Loss::algebraic_sum(actLoss, penalty);
 
 			if (actLoss > ris) {
 				ris = actLoss;
@@ -2349,6 +2354,16 @@ void MultiFlow::init_matrix_treeMF(void) {
 			mfTreeMatrix_energy[ve.first][cn.second->u->id] = calculateMatrixEnergy(ve.first, cn.second->u->id);
 		}
 	}
+	/*
+	for (auto& vt : mfTreeMatrix_time) {
+		cout << vt.first << "\t|\t";
+
+		for (auto& s : sens_list) {
+			cout << mfTreeMatrix_time[vt.first][s->sens->id] << " ";
+		}
+		cout << endl;
+	}
+	exit(0);*/
 }
 
 void MultiFlow::run_tree_multiflow(double end_time) {
@@ -2399,7 +2414,7 @@ void MultiFlow::run_tree_multiflow(double end_time) {
 
 
 void MultiFlow::calculateTreeBSF_and_UpdateMF(ChargingNode *leftmost, double end_time) {
-	list<SensorNode *> bestTSP;
+	list<pair<int, list<SensorNode *>>> bestTSPs;
 	//double startUAVenergy = leftmost->u->residual_energy;
 	//double timek = leftmost->lastTimestamp;
 	//int timek_tslot = leftmost->lastTimestamp_tslot;
@@ -2409,7 +2424,90 @@ void MultiFlow::calculateTreeBSF_and_UpdateMF(ChargingNode *leftmost, double end
 				(Generic::getInstance().timeSlot * Generic::getInstance().rechargeStation_power)
 			);
 
-	do {
+	double uavEnergy = leftmost->u->residual_energy;
+	double uavTime = leftmost->lastTimestamp;
+	int uavTimeTSlot = leftmost->lastTimestamp_tslot;
+	int bulkExecuted = 0;
+
+	//do {
+	while (true) {
+		list<SensorNode *> bTSP;
+
+		//cout << "U" << leftmost->u->id << " calculating path with energy " << uavEnergy
+		//		<< " and max energy of " << leftmost->u->max_energy
+		//		<< " with " << bulkExecuted << " bulks of recharge"
+		//		<< endl;
+
+		calculatePath(bTSP, leftmost, uavTime, uavTimeTSlot, uavEnergy, true, nullptr);
+		if (bTSP.size() > 0) {
+			bestTSPs.push_back(make_pair(bulkExecuted, bTSP));
+		}
+
+		if ((uavEnergy >= leftmost->u->max_energy) || (uavTime >= end_time)) break;
+
+		uavTimeTSlot += rechargeBulk;
+		uavTime = ((double) uavTimeTSlot) * Generic::getInstance().timeSlot;
+		uavEnergy = min(leftmost->u->max_energy, uavEnergy +
+				(((double) rechargeBulk) * Generic::getInstance().timeSlot * Generic::getInstance().rechargeStation_power));
+		++bulkExecuted;
+
+	}
+	//while ((uavEnergy < leftmost->u->max_energy) && (uavTime < end_time));
+
+	list<SensorNode *> bestTSP;
+	double gainTSP = 0;
+	double timeTSP = numeric_limits<double>::max();
+	int bulkToRecharge = 0;
+
+	for (auto& bTSP : bestTSPs) {
+		double g = 0;
+		double t = ((double) (bTSP.first * rechargeBulk)) * Generic::getInstance().timeSlot;
+		int actID = leftmost->u->id;
+		double actTime = leftmost->lastTimestamp;
+		list<pair<int, int>> lsensread;
+
+		for (auto& el : bTSP.second) {
+			double actArcTim = mfTreeMatrix_time[actID][el->sens->id];
+
+			t += actArcTim;
+			actTime += actArcTim;
+
+			g += 1.0 - calculateLossBSF(lsensread, sens_map[el->sens->id], actTime, true, nullptr);
+			lsensread.push_back(make_pair(el->sens->id, actTime));
+
+			actID = el->sens->id;
+		}
+		t += mfTreeMatrix_time[actID][leftmost->u->id];
+
+		if ( (g > gainTSP) || ((g == gainTSP) && (t < timeTSP)) ) {
+			gainTSP = g;
+			timeTSP = t;
+			bulkToRecharge = bTSP.first;
+			bestTSP = bTSP.second;
+		}
+
+		//cout << "U" << leftmost->u->id << " calculated path with " << bTSP.first << " bulks of recharge"
+		//		<< " having gain: " << g << " and time " << t
+		//		<< endl;
+	}
+
+	//cout << "The winner is the one with " << bulkToRecharge << " bulks of recharge"
+	//			<< " having gain: " << gainTSP << " and time " << timeTSP
+	//			<< endl;
+
+	if (bestTSP.size() > 0) {
+		leftmost->lastTimestamp_tslot += rechargeBulk * bulkToRecharge;
+		leftmost->lastTimestamp = ((double) leftmost->lastTimestamp_tslot) * Generic::getInstance().timeSlot;
+		leftmost->u->residual_energy = min(leftmost->u->max_energy,
+				leftmost->u->residual_energy +
+				(((double) (rechargeBulk * bulkToRecharge)) * Generic::getInstance().timeSlot * Generic::getInstance().rechargeStation_power));
+	}
+	else {
+		leftmost->lastTimestamp = end_time;
+		leftmost->lastTimestamp_tslot = ceil(end_time / Generic::getInstance().timeSlot);
+		leftmost->u->residual_energy = leftmost->u->max_energy;
+	}
+	/*do {
 		double batteryRatio = min(leftmost->u->residual_energy / leftmost->u->max_energy, 1.0);
 		double checkNum = pow(batteryRatio, Generic::getInstance().bsfExponent);
 
@@ -2440,7 +2538,7 @@ void MultiFlow::calculateTreeBSF_and_UpdateMF(ChargingNode *leftmost, double end
 		//startUAVenergy += min(leftmost->u->max_energy,
 		//		Generic::getInstance().timeSlot * Generic::getInstance().rechargeStation_power);
 
-	} while ((bestTSP.size() == 0) && (leftmost->lastTimestamp < end_time));
+	} while ((bestTSP.size() == 0) && (leftmost->lastTimestamp < end_time));*/
 
 
 	activateBSFandRecharge(leftmost, bestTSP);
@@ -2967,7 +3065,7 @@ void MultiFlow::calculateBSF(list<SensorNode *> &path, ChargingNode *cn, double 
 				llist.remove(qt_pair);
 				llist.push_back(sj_pair);
 
-				if (llist.size() > sens_map.size()) {
+				if (llist.size() > (sens_map.size() * 2)) {
 					pair<int, int> st_pair = make_pair(-1, -1);
 					double gain = numeric_limits<double>::max();
 
@@ -3001,18 +3099,26 @@ void MultiFlow::calculateBSF(list<SensorNode *> &path, ChargingNode *cn, double 
 	pair<int, int> final_pair = make_pair(-1, -1);
 	double final_gain = 0;
 
+	//cout << "Calculated PATHS: " << endl;
 	for (auto& stprime : llist) {
 		double sumgain = 0;
 
+		//cout << "From <" << stprime.first << ";" << stprime.second << "> -> ";
+
 		for (auto& stpath : pathmap[stprime]) {
-			sumgain += 1.0 - calculateLossBSF(pathmap[stprime], sens_map[stpath.first], stpath.second, centralized, uav);
+			double actLossSens = calculateLossBSF(pathmap[stprime], sens_map[stpath.first], stpath.second, centralized, uav);
+			sumgain += 1.0 - actLossSens;
+
+			//cout << "S" << stpath.first << "(" << stpath.second*Generic::getInstance().timeSlot << "|" << actLossSens << ") ";
 		}
+		//cout << " GAIN: " << sumgain << endl;
 
 		if(sumgain > final_gain) {
 			final_pair = stprime;
 			final_gain = sumgain;
 		}
 	}
+	//cout << endl << endl;
 
 	path.clear();
 	for (auto& f : pathmap[final_pair]) {
@@ -3022,6 +3128,7 @@ void MultiFlow::calculateBSF(list<SensorNode *> &path, ChargingNode *cn, double 
 
 double MultiFlow::calculateLossBSF(list<pair<int,int>> &phi, SensorNode *sn, int tm_tslot, bool centralized, UavDistributed *uav) {
 	double ris = 0;
+	double tm = ((double) tm_tslot) * Generic::getInstance().timeSlot;
 
 	std::list<Sensor *> ssList;
 	for (auto& sn : sens_list){
@@ -3034,7 +3141,7 @@ double MultiFlow::calculateLossBSF(list<pair<int,int>> &phi, SensorNode *sn, int
 			for (auto& r : s->readings) {
 				double actLoss = Loss::algebraic_sum(
 						Loss::getInstance().calculate_loss_distance(s->sens, sn->sens)
-						* Loss::getInstance().calculate_loss_time(r.readTime, tm_tslot),
+						* Loss::getInstance().calculate_loss_time(r.readTime, tm),
 						Loss::getInstance().calculate_loss_energy(sn->sens, tm_tslot, ssList));
 
 				if (actLoss > ris) {
@@ -3052,7 +3159,7 @@ double MultiFlow::calculateLossBSF(list<pair<int,int>> &phi, SensorNode *sn, int
 				}
 				double actLoss = Loss::algebraic_sum(
 						Loss::getInstance().calculate_loss_distance(s->sens, sn->sens)
-						* Loss::getInstance().calculate_loss_time(r, tm_tslot),
+						* Loss::getInstance().calculate_loss_time(r, tm),
 						Loss::getInstance().calculate_loss_energy_onNumber(uav->sensMapTree[sn->sens->id].lastResidualEnergy, tm_tslot, eeList));
 
 				double closestThenMe = 0;
@@ -3063,10 +3170,15 @@ double MultiFlow::calculateLossBSF(list<pair<int,int>> &phi, SensorNode *sn, int
 					}
 				}
 
-				double discount = (closestThenMe + 1.0) / (((double) uav->neighMap.size()) + 1.0);
+				//double discount = (closestThenMe + 1.0) / (((double) uav->neighMap.size()) + 1.0);
+				double penalty = 0.0;
+				if (uav->neighMap.size() > 0) {
+					penalty = closestThenMe / ((double) uav->neighMap.size());
+				}
 				//cout << "        Inside calcLossSensor. Calculated discount: " << discount << endl << flush;
 
-				actLoss *= discount;
+				//actLoss *= discount;
+				actLoss = Loss::algebraic_sum(actLoss, penalty);
 
 				if (actLoss > ris) {
 					ris = actLoss;
@@ -3078,13 +3190,50 @@ double MultiFlow::calculateLossBSF(list<pair<int,int>> &phi, SensorNode *sn, int
 	// check over the hypothetical readings
 	for (auto& p : phi) {
 		if (tm_tslot > p.second){
-			double actLoss = Loss::algebraic_sum(
-					Loss::getInstance().calculate_loss_distance(sens_map[p.first]->sens, sn->sens)
-					* Loss::getInstance().calculate_loss_time(p.second, tm_tslot),
-					Loss::getInstance().calculate_loss_energy(sn->sens, tm_tslot, ssList));
+			double ptime = ((double) p.second) * Generic::getInstance().timeSlot;
+			if (centralized){
+				double actLoss = Loss::algebraic_sum(
+						Loss::getInstance().calculate_loss_distance(sens_map[p.first]->sens, sn->sens)
+						* Loss::getInstance().calculate_loss_time(ptime, tm),
+						Loss::getInstance().calculate_loss_energy(sn->sens, tm_tslot, ssList));
 
-			if (actLoss > ris) {
-				ris = actLoss;
+				if (actLoss > ris) {
+					ris = actLoss;
+				}
+			}
+			else {
+				list<double> eeList;
+				for (auto& ee : uav->sensMapTree){
+					if (ee.first != sn->sens->id) {
+						eeList.push_back(ee.second.lastResidualEnergy);
+					}
+				}
+				double actLoss = Loss::algebraic_sum(
+						Loss::getInstance().calculate_loss_distance(sens_map[p.first]->sens, sn->sens)
+						* Loss::getInstance().calculate_loss_time(ptime, tm),
+						Loss::getInstance().calculate_loss_energy_onNumber(uav->sensMapTree[sn->sens->id].lastResidualEnergy, tm_tslot, eeList));
+
+				double closestThenMe = 0;
+				double myDist = uav->cn->pos.distance(sn->sens->coord);
+				for (auto& u : uav->neighMap) {
+					if (u.second.uav->cn->pos.distance(sn->sens->coord) < myDist) {
+						closestThenMe += 1.0;
+					}
+				}
+
+				//double discount = (closestThenMe + 1.0) / (((double) uav->neighMap.size()) + 1.0);
+				double penalty = 0.0;
+				if (uav->neighMap.size() > 0) {
+					penalty = closestThenMe / ((double) uav->neighMap.size());
+				}
+				//cout << "        Inside calcLossSensor. Calculated discount: " << discount << endl << flush;
+
+				//actLoss *= discount;
+				actLoss = Loss::algebraic_sum(actLoss, penalty);
+
+				if (actLoss > ris) {
+					ris = actLoss;
+				}
 			}
 		}
 	}
@@ -3267,6 +3416,7 @@ void MultiFlow::run_tree_multiflow_distr(double end_time) {
 
 		uav->us = UavDistributed::RECHARGING;
 		uav->tsp2update = false;
+		uav->rechargeBulk = 0;
 	}
 
 
@@ -3276,7 +3426,7 @@ void MultiFlow::run_tree_multiflow_distr(double end_time) {
 
 
 		//cout << "Updating NeighMaps" << endl << flush;
-		updateNeighMaps(sim_time);
+		//updateNeighMaps(sim_time);
 		//cout << "End check UAVs AFTER updateNeighMaps" << endl << flush;
 
 
@@ -3295,7 +3445,7 @@ void MultiFlow::run_tree_multiflow_distr(double end_time) {
 			}
 		}
 
-		cout << "Sim-Time: "<< sim_time << endl << flush;
+		//cout << "Sim-Time: "<< sim_time << endl << flush;
 		++sim_time_tslot;
 		sim_time = ((double) sim_time_tslot) * Generic::getInstance().timeSlot;
 	}
@@ -3332,6 +3482,7 @@ void MultiFlow::run_uav_tree(UavDistributed *uav, double simTime, int simTime_ts
 				//every time I set this reading
 				SensorNode::SensorRead sr;
 				sr.readTime = simTime;
+				sr.readTime_tslot = simTime_tslot;
 				sr.uav = uav->cn->u;
 				sn->readings.push_back(sr);
 
@@ -3400,6 +3551,7 @@ void MultiFlow::run_uav_tree(UavDistributed *uav, double simTime, int simTime_ts
 					//set node wake up the data
 					SensorNode::SensorRead sr;
 					sr.readTime = simTime;
+					sr.readTime_tslot = simTime_tslot;
 					sr.uav = uav->cn->u;
 					sn->real_wakeup.push_back(sr);
 
@@ -3470,6 +3622,7 @@ void MultiFlow::run_uav_tree(UavDistributed *uav, double simTime, int simTime_ts
 				//read the data
 				SensorNode::SensorRead rsr;
 				rsr.readTime = simTime;
+				rsr.readTime_tslot = simTime_tslot;
 				rsr.uav = uav->cn->u;
 				sn->real_readings.push_back(rsr);
 
@@ -3492,12 +3645,13 @@ void MultiFlow::run_uav_tree(UavDistributed *uav, double simTime, int simTime_ts
 
 				if (uav->tsp2update) {
 					//calculateTSP_distributed(uav, uav->cn->u->actual_coord, uav->cn->pos, simTime);
-					calculatePath(uav->activeTSP,
+					/*calculatePath(uav->activeTSP,
 							uav->cn,
 							uav->cn->lastTimestamp,
 							uav->cn->lastTimestamp_tslot,
 							uav->cn->u->residual_energy,
-							false, uav);
+							false, uav);*/
+
 					uav->tsp2update = false;
 				}
 			}
@@ -3514,12 +3668,14 @@ void MultiFlow::run_uav_tree(UavDistributed *uav, double simTime, int simTime_ts
 
 				if (uav->tsp2update) {
 					//calculateTSP_distributed(uav, uav->cn->u->actual_coord, uav->cn->pos, simTime);
-					calculatePath(uav->activeTSP,
+
+					/*calculatePath(uav->activeTSP,
 							uav->cn,
 							uav->cn->lastTimestamp,
 							uav->cn->lastTimestamp_tslot,
 							uav->cn->u->residual_energy,
-							false, uav);
+							false, uav);*/
+
 					uav->tsp2update = false;
 				}
 			}
@@ -3536,7 +3692,120 @@ void MultiFlow::run_uav_tree(UavDistributed *uav, double simTime, int simTime_ts
 			uav->cn->u->residual_energy = uav->cn->u->max_energy;
 		}
 
-		{
+		uav->rechargeBulk = max(0, uav->rechargeBulk - 1);
+
+		if (uav->rechargeBulk == 0) {
+			if (uav->activeTSP.size() > 0) {
+				uav->us = UavDistributed::MOVING;
+			}
+			else {
+				list<pair<int, list<SensorNode *>>> bestTSPs;
+				double uavEnergy = uav->cn->u->residual_energy;
+				double uavTime = simTime;
+				int uavTimeTSlot = simTime_tslot;
+				int bulkExecuted = 0;
+				int rechargeBulkSlot = ceil(
+						(uav->cn->u->max_energy * Generic::getInstance().rechargeRatio) /
+						(Generic::getInstance().timeSlot * Generic::getInstance().rechargeStation_power)
+				);
+
+				//do {
+				while (true) {
+					list<SensorNode *> bTSP;
+
+					//cout << "U" << uav->cn->u->id << " calculating path with energy " << uavEnergy
+					//		<< " and max energy of " << uav->cn->u->max_energy
+					//		<< " with " << bulkExecuted << " bulks of recharge of size " << rechargeBulkSlot
+					//		<< endl;
+
+					calculatePath(bTSP, uav->cn, uavTime, uavTimeTSlot, uavEnergy, false, uav);
+					if (bTSP.size() > 0) {
+						bestTSPs.push_back(make_pair(bulkExecuted, bTSP));
+					}
+					//cout << "Calculated" << endl;
+
+					if (uavEnergy >= uav->cn->u->max_energy) break;
+
+					uavTimeTSlot += rechargeBulkSlot;
+					uavTime = ((double) uavTimeTSlot) * Generic::getInstance().timeSlot;
+					uavEnergy = min(uav->cn->u->max_energy, uavEnergy +
+							(((double) rechargeBulkSlot) * Generic::getInstance().timeSlot * Generic::getInstance().rechargeStation_power));
+					++bulkExecuted;
+				//} while (uavEnergy < uav->cn->u->max_energy);
+				}
+
+				list<SensorNode *> bestTSP;
+				double gainTSP = 0;
+				double timeTSP = numeric_limits<double>::max();
+				int bulkToRecharge = 0;
+
+				cout << "Calculated path at time " << simTime << endl;
+				for (auto& bTSP : bestTSPs) {
+					double g = 0;
+					double t = ((double) (bTSP.first * rechargeBulkSlot)) * Generic::getInstance().timeSlot;
+					int actID = uav->cn->u->id;
+					double actTime = simTime + t;
+					double actTime_tslot = simTime_tslot + (bTSP.first * rechargeBulkSlot);
+					list<pair<int, int>> lsensread;
+
+					cout << "Recharging for " << bTSP.first << " bulks -> C" << uav->cn->u->id << "(" << actTime << ")";
+
+					for (auto& el : bTSP.second) {
+						double actArcTim = mfTreeMatrix_time[actID][el->sens->id];
+						double actArcTimSlot = mfTreeMatrix_timeslot[actID][el->sens->id];
+
+						t += actArcTim;
+						actTime += actArcTim;
+						actTime_tslot += actArcTimSlot;
+
+						double actLossSens = calculateLossBSF(lsensread, sens_map[el->sens->id], actTime_tslot, true, nullptr);
+
+						g += 1.0 - actLossSens;
+						lsensread.push_back(make_pair(el->sens->id, actTime_tslot));
+
+						cout << " S" << el->sens->id << "(" << actTime << "|" << actLossSens << ")";
+
+						actID = el->sens->id;
+					}
+					t += mfTreeMatrix_time[actID][uav->cn->u->id];
+
+					cout << " C" << uav->cn->u->id << "(" << actTime + mfTreeMatrix_time[actID][uav->cn->u->id] << ")" << endl;
+
+					if ( (g > gainTSP) || ((g == gainTSP) && (t < timeTSP)) ) {
+						gainTSP = g;
+						timeTSP = t;
+						bulkToRecharge = bTSP.first;
+						bestTSP = bTSP.second;
+					}
+
+					//cout << "U" << uav->cn->u->id << " calculated path with " << bTSP.first << " bulks of recharge"
+					//		<< " having gain: " << g << " and time " << t
+					//		<< endl;
+				}
+
+				//cout << "The winner is the one with " << bulkToRecharge << " bulks of recharge"
+				//			<< " having gain: " << gainTSP << " and time " << timeTSP
+				//			<< endl;
+
+				if (bestTSP.size() > 0) {
+					uav->rechargeBulk = rechargeBulkSlot * bulkToRecharge;
+					uav->activeTSP = bestTSP;
+
+					cerr << "PATH at " << simTime << ": C" << uav->cn->u->id << " ";
+					for (auto& s : uav->activeTSP) {
+						cerr << "S" << s->sens->id << " ";
+					}
+					cerr << "C" << uav->cn->u->id
+							<< " with time to recharge: " << uav->rechargeBulk << endl;
+
+					if (uav->rechargeBulk == 0) {
+						uav->us = UavDistributed::MOVING;
+					}
+				}
+			}
+		}
+
+		/*{
 			double batteryRatio = min(uav->cn->u->residual_energy / uav->cn->u->max_energy, 1.0);
 			double checkNum = pow(batteryRatio, Generic::getInstance().bsfExponent);
 
@@ -3554,7 +3823,7 @@ void MultiFlow::run_uav_tree(UavDistributed *uav, double simTime, int simTime_ts
 					//cout << "UAV " << uav->cn->u->id << " moving on state MOVING" << endl << flush;
 				}
 			}
-		}
+		}*/
 		break;
 	}
 

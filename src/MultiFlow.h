@@ -198,6 +198,19 @@ public:
 		double commProb;
 	} wakeupVal;
 
+	typedef struct pathStats {
+		double time_cost;
+		int time_cost_tslot;
+		double energy_cost;
+		double total_gain;
+		double total_loss;
+		int recharge_bulk;
+
+		pathStats(){
+			time_cost = time_cost_tslot = energy_cost = total_gain = total_loss = recharge_bulk = 0;
+		}
+	} pathStats;
+
 public:
 	typedef enum {
 		ALGO_BSF,
@@ -278,15 +291,22 @@ public:
 	double calculateLossBSF(list<pair<int,int>> &phi, SensorNode *sn, int tm_tslot, bool centralized, UavDistributed *uav);
 	void activateBSFandRecharge(ChargingNode *cnode, list<SensorNode *> &tsp);
 
-	void calculateBSF(list<SensorNode *> &path, ChargingNode *cn, double tk, int tk_tslot, double uav_e, bool centralized, UavDistributed *uav);
-	void calculateBSF_distance(list<SensorNode *> &path, ChargingNode *cn, double tk, int tk_tslot, double uav_e, bool centralized, UavDistributed *uav);
-	void calculateBSF_energy(list<SensorNode *> &path, ChargingNode *cn, double tk, int tk_tslot, double uav_e, bool centralized, UavDistributed *uav);
+	void calculateBSF(list<SensorNode *> &path, ChargingNode *cn, double tk, int tk_tslot, double uav_e,
+			bool centralized, UavDistributed *uav, pathStats &pstat);
+	void calculateBSF_distance(list<SensorNode *> &path, ChargingNode *cn, double tk, int tk_tslot, double uav_e,
+			bool centralized, UavDistributed *uav, pathStats &pstat);
+	void calculateBSF_energy(list<SensorNode *> &path, ChargingNode *cn, double tk, int tk_tslot, double uav_e,
+			bool centralized, UavDistributed *uav, pathStats &pstat);
 
-	void calculateDSF(list<SensorNode *> &path, ChargingNode *cn, double tk, int tk_tslot, double uav_e, bool centralized, UavDistributed *uav);
-	void calculateDSF_distance(list<SensorNode *> &path, ChargingNode *cn, double tk, int tk_tslot, double uav_e, bool centralized, UavDistributed *uav);
-	void calculateDSF_energy(list<SensorNode *> &path, ChargingNode *cn, double tk, int tk_tslot, double uav_e, bool centralized, UavDistributed *uav);
+	void calculateDSF(list<SensorNode *> &path, ChargingNode *cn, double tk, int tk_tslot, double uav_e,
+			bool centralized, UavDistributed *uav, pathStats &pstat);
+	void calculateDSF_distance(list<SensorNode *> &path, ChargingNode *cn, double tk, int tk_tslot, double uav_e,
+			bool centralized, UavDistributed *uav, pathStats &pstat);
+	void calculateDSF_energy(list<SensorNode *> &path, ChargingNode *cn, double tk, int tk_tslot, double uav_e,
+			bool centralized, UavDistributed *uav, pathStats &pstat);
 
-	void calculatePath(list<SensorNode *> &path, ChargingNode *cn, double tk, int tk_tslot, double uav_e, bool centralized, UavDistributed *uav);
+	void calculatePath(list<SensorNode *> &path, ChargingNode *cn, double tk, int tk_tslot, double uav_e,
+			bool centralized, UavDistributed *uav, pathStats &pstat);
 
 public:
 	void initEfficiencyMap(void);

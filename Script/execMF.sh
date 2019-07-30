@@ -92,7 +92,7 @@ do
 				do									
 					for (( runs=B_RUNS; runs<=N_RUNS; runs++ ))
 					do
-						StatFolder="${BASE_OUTPUT_DIR}${3}/${AlgoMain}"
+						StatFolder="${BASE_OUTPUT_DIR}${TEST_NAME}/${AlgoMain}"
 						mkdir -p ${StatFolder}
 						#StatFile="${StatFolder}/stat_NU${Nuav}_NS${Nsensors}_A${Alpha}_R${runs}.log"
 						StatFile="${StatFolder}/stat_NU${Nuav}_NS${Nsensors}_AT${AlgoType}_T${TimeExp}.log"

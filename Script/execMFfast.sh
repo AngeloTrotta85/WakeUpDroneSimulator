@@ -1,9 +1,11 @@
 #!/bin/bash
 
 BASE_OUTPUT_DIR="results/"
-EXEC="/media/angelo/BigLinux/Programs/Eclipse/EclipseCPP/workspaces/wakeUpDrone/WakeUpDroneSimulator/Release/WakeUpDroneSimulator"
-B_RUNS=$1
-N_RUNS=$2
+#EXEC="/media/angelo/BigLinux/Programs/Eclipse/EclipseCPP/workspaces/wakeUpDrone/WakeUpDroneSimulator/Release/WakeUpDroneSimulator"
+EXEC=$1
+B_RUNS=$2
+N_RUNS=$3
+TEST_NAME=$4
 
 Nuav=2
 Nsensors=100
@@ -56,7 +58,7 @@ do
 					do										
 						for (( runs=B_RUNS; runs<=N_RUNS; runs++ ))
 						do
-							StatFolder="${BASE_OUTPUT_DIR}${3}/${AlgoMain}"
+							StatFolder="${BASE_OUTPUT_DIR}${TEST_NAME}/${AlgoMain}"
 							mkdir -p ${StatFolder}
 							#StatFile="${StatFolder}/stat_NU${Nuav}_NS${Nsensors}_A${Alpha}_R${runs}.log"
 							StatFile="${StatFolder}/stat_NU${Nuav}_NS${Nsensors}_AT${AlgoType}_T${TimeExp}.log"
@@ -90,7 +92,7 @@ do
 				do									
 					for (( runs=B_RUNS; runs<=N_RUNS; runs++ ))
 					do
-						StatFolder="${BASE_OUTPUT_DIR}${3}/${AlgoMain}"
+						StatFolder="${BASE_OUTPUT_DIR}${TEST_NAME}/${AlgoMain}"
 						mkdir -p ${StatFolder}
 						#StatFile="${StatFolder}/stat_NU${Nuav}_NS${Nsensors}_A${Alpha}_R${runs}.log"
 						StatFile="${StatFolder}/stat_NU${Nuav}_NS${Nsensors}_AT${AlgoType}_T${TimeExp}.log"

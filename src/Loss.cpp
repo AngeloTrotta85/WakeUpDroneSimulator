@@ -48,6 +48,16 @@ double Loss::calculate_loss_energy_only(long double e, std::list<long double> &e
 }
 
 double Loss::calculate_loss_energy(Sensor *se, int tk, std::list<Sensor *> &sl) {
+
+	double maxEnergy = 0;
+	double minEnergy = std::numeric_limits<double>::max();
+	for (auto& ss : sl) {
+		if (maxEnergy < ss->residual_energy) maxEnergy = ss->residual_energy;
+		if (minEnergy > ss->residual_energy) minEnergy = ss->residual_energy;
+	}
+	return (1.0 - pow((se->residual_energy - minEnergy) / (maxEnergy - minEnergy), 3.0));
+
+	/*
 	double ris = 0;
 	for (auto& ss : sl) {
 		if (ss->id != se->id) {
@@ -69,9 +79,20 @@ double Loss::calculate_loss_energy(Sensor *se, int tk, std::list<Sensor *> &sl) 
 		}
 	}
 	return ris;
+	*/
 }
 
 double Loss::calculate_loss_energy_onNumber(double e, int tk, std::list<double> &el) {
+
+	double maxEnergy = e;
+	double minEnergy = e;
+	for (auto& ee : el) {
+		if (maxEnergy < ee) maxEnergy = ee;
+		if (minEnergy > ee) minEnergy = ee;
+	}
+	return (1.0 - pow((e - minEnergy) / (maxEnergy - minEnergy), 3.0));
+
+	/*
 	double ris = 0;
 	for (auto& ee : el) {
 		double actLoss = 0;
@@ -91,6 +112,7 @@ double Loss::calculate_loss_energy_onNumber(double e, int tk, std::list<double> 
 		}
 	}
 	return ris;
+	*/
 }
 
 double Loss::calculate_loss_distance(Sensor *s1, Sensor *s2) {

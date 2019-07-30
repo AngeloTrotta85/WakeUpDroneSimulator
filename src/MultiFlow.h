@@ -325,6 +325,7 @@ public:
 	double calcLossSensorOriginal_Tree(SensorNode *s_check, list<SensorNode *> &sList, int texp);
 	double calcIndex_Tree(void);
 	bool updateSensorsEnergy_Tree(int starttime, int endtime);
+	int calcNumRead_Tree(void);
 
 	void run_uav_tree(UavDistributed *uav, double simTime, int simTime_tslot) ;
 

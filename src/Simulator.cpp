@@ -785,13 +785,18 @@ void Simulator::finish_tree_multiflow(std::vector<CoordCluster *> &clustVec, std
 			//ofs << "FINISH IndexOverHour " << (index / lifetimeHour) << endl;
 			//ofs << "FINISH IndexOverDay " << (index / lifetimeDay) << endl;
 
+			int readings = mf->calcNumRead_Tree();
+			double avg_read = ((double) readings) / ((double) sensList.size());
+
 			ofs 	<< RandomGenerator::getInstance().getSeed() << ";"
 					<< lifetimeSec << ";"
 					<< lifetimeHour << ";"
 					<< lifetimeDay << ";"
 					<< index << ";"
 					<< (index / lifetimeHour) << ";"
-					<< (index / lifetimeDay)
+					<< (index / lifetimeDay) << ";"
+					<< readings << ";"
+					<< avg_read
 					<< endl;
 
 		}
@@ -865,13 +870,18 @@ void Simulator::finish_tree_multiflow_distr(std::vector<CoordCluster *> &clustVe
 			//ofs << "FINISH IndexOverHour " << (index / lifetimeHour) << endl;
 			//ofs << "FINISH IndexOverDay " << (index / lifetimeDay) << endl;
 
+			int readings = mf->calcNumRead_Tree();
+			double avg_read = ((double) readings) / ((double) sensList.size());
+
 			ofs 	<< RandomGenerator::getInstance().getSeed() << ";"
 					<< lifetimeSec << ";"
 					<< lifetimeHour << ";"
 					<< lifetimeDay << ";"
 					<< index << ";"
 					<< (index / lifetimeHour) << ";"
-					<< (index / lifetimeDay)
+					<< (index / lifetimeDay) << ";"
+					<< readings << ";"
+					<< avg_read
 					<< endl;
 
 		}

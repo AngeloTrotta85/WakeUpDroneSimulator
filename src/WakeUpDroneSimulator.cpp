@@ -173,12 +173,12 @@ int main(int argc, char **argv) {
 	MultiFlow::Algo_type at = MultiFlow::ALGO_BSF;
 
 	// (constant k at predefined %) k = (ln(1/%))/x       (used 0.1%)
-	double kd = 0.002; //0.00460517;		//when 0.1? [0.00460517 at 500m] [0.1 at 26m][0.05 at 45m][0.02 at 115m][0.01 at 230m][0.005 at 460m]
+	double kd = 0.004; //0.00460517;		//when 0.1? [0.00460517 at 500m] [0.1 at 26m][0.05 at 45m][0.02 at 115m][0.01 at 230m][0.005 at 460m]
 	double kt = 0.0006; //0.000319803;	//when 0.1? [0.000319803 at 2h][0.000106601 at 6h][0.1 at 26s][0.05 at 45s][0.02 at 115s][0.01 at 230s][0.005 at 460s][0.002 at 1150s][0.001 at 2300s][0.00065 at 3600s][0.0005 at 4600s]
 	double ke = 0.005; //0.002878231;	//when 0.9? [0.002878231 at 800J][0.001151293 at 2000J][0.1 at 26J][0.05 at 45J][0.02 at 115J][0.01 at 230J][0.005 at 460J][0.002 at 1150J][0.001 at 2300J][0.00065 at 3600s][0.0005 at 4600s][0.000105 at 21600J]
 
-	double md = 5000; //1000;
-	double mt = 4500; //7200;
+	double md = 2000; //1000;
+	double mt = 15000; //7200;
 	double me = 1800; //1200;
 	bool useSigmoid = true; //false;
 
@@ -187,7 +187,7 @@ int main(int argc, char **argv) {
 	// UAV parameters
 	double initEnergyUAV = 119880;  	// Joule -> 3000mAh * 11.1Volt * 3.6
 	double motorPower = 21.7;  			// Watt -> calcolato esempio da "https://www.ecalc.ch/xcoptercalc.php"
-	double rechargePower = 15; 			// Watt	-> charging at 1C (it should recharges in 1h, but actually it needs 2.5h to finish the charge)
+	double rechargePower = 20; 			// Watt	-> charging at 1C (it should recharges in 1h, but actually it needs 2.5h to finish the charge)
 	double flightAltitude = 5;			// Meters (having Ptx=0.5 and Gtx=8.6 and Grx=1, at 25m it needs ~2sec to wakeup)
 	double maxVelocity = 12;			// m/s
 	double time2read = 1;				// seconds
@@ -215,22 +215,22 @@ int main(int argc, char **argv) {
 	double tsup = 20;					// sec -> t_{startup}
 	double ttout = 20;					// sec -> t_{timeout}
 	int numr = 3;						// n_r
-	double ps_sup = 0.000002;			// Watt -> p^S_{startup}
-	double ps_tx = 0.000001;			// Watt -> p^S_{tx}
-	double ps_rx = 0.000001;			// Watt -> p^S_{rx}
-	double pu_sup = 0.000002;			// Watt -> p^U_{startup}
-	double pu_tx = 0.000001;			// Watt -> p^U_{tx}
-	double pu_rx = 0.000001;			// Watt -> p^U_{rx}
+	double ps_sup = 0.05;				// Watt -> p^S_{startup}
+	double ps_tx = 0.1;					// Watt -> p^S_{tx}
+	double ps_rx = 0.01;				// Watt -> p^S_{rx}
+	double pu_sup = 0.05;				// Watt -> p^U_{startup}
+	double pu_tx = 0.1;					// Watt -> p^U_{tx}
+	double pu_rx = 0.01;				// Watt -> p^U_{rx}
 	double gUmax = 8;					// dBi -> g^U_{max}
 	double aUmax = M_PI_4;				// rad -> a^U_{max}
 	double gSmax = 1;					// dBi -> g^S_{max}
 	double aSmax = M_PI;				// rad -> a^S_{max}
-	double uavComRange = 50.0;			// meters -> UAV communication range
-	double neighUAVTout = 3600.0;		// sec -> UAV neigh timeout in the distributed method
+	double uavComRange = 100.0;			// meters -> UAV communication range
+	double neighUAVTout = 3600.0 * 4.0;	// sec -> UAV neigh timeout in the distributed method
 
 	double twu = 1;						// sec -> t_{wakeup}
-	double pwu = 1;						// probability of wake-up -> p_{wakeup}
-	double pcom = 1;					// probability of comunication -> p_{com}
+	double pwu = 0.99;					// probability of wake-up -> p_{wakeup}
+	double pcom = 0.99;					// probability of comunication -> p_{com}
 	double bsfExponent = 3.0;			// exponent for the probability to execute the BSF
 	double rechargeRatio = 0.1;			// percentage of recarge before trying to BSF
 

@@ -1256,6 +1256,47 @@ int MultiFlow::calcNumRead_Tree(void) {
 	return ris;
 }
 
+void MultiFlow::calcFinalGainsTree(double &minGain, double &maxGain, double &varGain, double &avgGain) {
+	double sumGain = 0.0;
+	double countGain = 0.0;
+
+	minGain = 1.0;
+	maxGain = 0.0;
+	avgGain = 0.0;
+	varGain = 0.0;
+
+	for (auto& s : sens_list) {
+		for (auto& r : s->real_readings) {
+			double actIndex = 1.0 - calcLossSensorOriginal_Tree(s, sens_list, r.readTime);
+			if (actIndex < 0) {
+				cerr << "Error in calculating index: " << actIndex << endl;
+				exit(EXIT_FAILURE);
+			}
+
+			if (actIndex > maxGain) maxGain = actIndex;
+			if (actIndex < minGain) minGain = actIndex;
+
+			sumGain += actIndex;
+			countGain += 1.0;
+		}
+	}
+	if (countGain > 0.0) {
+		avgGain = sumGain / countGain;
+	}
+
+	sumGain = 0.0;
+	for (auto& s : sens_list) {
+		for (auto& r : s->real_readings) {
+			double actIndex = 1.0 - calcLossSensorOriginal_Tree(s, sens_list, r.readTime);
+
+			sumGain += pow(actIndex - avgGain, 2.0);
+		}
+	}
+	if (countGain > 1.0) {
+		varGain = sumGain / (countGain - 1.0);
+	}
+}
+
 
 
 

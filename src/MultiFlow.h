@@ -326,6 +326,7 @@ public:
 	double calcIndex_Tree(void);
 	bool updateSensorsEnergy_Tree(int starttime, int endtime);
 	int calcNumRead_Tree(void);
+	void calcFinalGainsTree(double &minGain, double &maxGain, double &varGain, double &avgGain);
 
 	void run_uav_tree(UavDistributed *uav, double simTime, int simTime_tslot) ;
 

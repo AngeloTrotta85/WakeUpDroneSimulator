@@ -37,6 +37,9 @@ void Sensor::generateRandomSensors(std::list<Sensor *> &pl, int ss, int ns) {
 		if (Generic::getInstance().fullRandomInit) {
 			randomEnergy = RandomGenerator::getInstance().getRealUniform(0.0, Generic::getInstance().initSensorEnergy);
 		}
+		else if (Generic::getInstance().fullEnergySensorInit) {
+			randomEnergy = Generic::getInstance().initSensorEnergy;
+		}
 		else {
 			randomEnergy = RandomGenerator::getInstance().getRealNormal(Generic::getInstance().initSensorEnergy, Generic::getInstance().initSensorEnergy / 50.0);
 		}

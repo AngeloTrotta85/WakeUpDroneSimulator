@@ -60,10 +60,10 @@ do
 						do
 							StatFolder="${BASE_OUTPUT_DIR}${TEST_NAME}/${AlgoMain}"
 							mkdir -p ${StatFolder}
-							#StatFile="${StatFolder}/stat_NU${Nuav}_NS${Nsensors}_A${Alpha}_R${runs}.log"
-							StatFile="${StatFolder}/stat_NU${Nuav}_NS${Nsensors}_AT${AlgoType}_T${TimeExp}.log"
-							LogFile="${StatFolder}/log_NU${Nuav}_NS${Nsensors}_AT${AlgoType}_T${TimeExp}_R${runs}.log"
-							HitFile="${StatFolder}/hit_NU${Nuav}_NS${Nsensors}_AT${AlgoType}_T${TimeExp}_R${runs}"
+							#StatFile="${StatFolder}/stat_NU${Nuav}_NS${Nsensors}_A${Alpha}_ML${MaxLoss}_R${runs}.log"
+							StatFile="${StatFolder}/stat_NU${Nuav}_NS${Nsensors}_AT${AlgoType}_T${TimeExp}_ML${MaxLoss}.log"
+							LogFile="${StatFolder}/log_NU${Nuav}_NS${Nsensors}_AT${AlgoType}_T${TimeExp}_ML${MaxLoss}_R${runs}.log"
+							HitFile="${StatFolder}/hit_NU${Nuav}_NS${Nsensors}_AT${AlgoType}_T${TimeExp}_ML${MaxLoss}_R${runs}"
 							
 							STR_EXEC="$EXEC -seed ${runs} -sFE ${fullEnergy} -st ${AlgoMain} -at ${AlgoType} -mfMaxLoss ${MaxLoss} -nu ${Nuav} -ns ${Nsensors} -sFR 1 -alpha ${Alpha} -time ${TimeExp} -statFile ${StatFile} -statOnrun ${StatOnRun} -stat2l ${StatToLog} -hmFile ${HitFile} -ke ${varKE} -me ${varME} -kd ${varKD} -md ${varMD} -kt ${varKT} -mt ${varMT} -uSigm ${useSigmoid}"
 								
@@ -94,10 +94,10 @@ do
 					do
 						StatFolder="${BASE_OUTPUT_DIR}${TEST_NAME}/${AlgoMain}"
 						mkdir -p ${StatFolder}
-						#StatFile="${StatFolder}/stat_NU${Nuav}_NS${Nsensors}_A${Alpha}_R${runs}.log"
-						StatFile="${StatFolder}/stat_NU${Nuav}_NS${Nsensors}_AT${AlgoType}_T${TimeExp}.log"
-						LogFile="${StatFolder}/log_NU${Nuav}_NS${Nsensors}_AT${AlgoType}_T${TimeExp}_R${runs}.log"
-						HitFile="${StatFolder}/hit_NU${Nuav}_NS${Nsensors}_AT${AlgoType}_T${TimeExp}_R${runs}"
+						#StatFile="${StatFolder}/stat_NU${Nuav}_NS${Nsensors}_A${Alpha}_ML1_R${runs}.log"
+						StatFile="${StatFolder}/stat_NU${Nuav}_NS${Nsensors}_AT${AlgoType}_T${TimeExp}_ML1.log"
+						LogFile="${StatFolder}/log_NU${Nuav}_NS${Nsensors}_AT${AlgoType}_T${TimeExp}_ML1_R${runs}.log"
+						HitFile="${StatFolder}/hit_NU${Nuav}_NS${Nsensors}_AT${AlgoType}_T${TimeExp}_ML1_R${runs}"
 						
 						STR_EXEC="$EXEC -seed ${runs} -sFE ${fullEnergy} -st ${AlgoMain} -at ${AlgoType} -nu ${Nuav} -ns ${Nsensors} -sFR 1 -alpha ${Alpha} -time ${TimeExp} -statFile ${StatFile} -statOnrun ${StatOnRun} -stat2l ${StatToLog} -hmFile ${HitFile} -ke ${varKE} -me ${varME} -kd ${varKD} -md ${varMD} -kt ${varKT} -mt ${varMT} -uSigm ${useSigmoid}"
 							

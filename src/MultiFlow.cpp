@@ -2670,7 +2670,11 @@ void MultiFlow::calculateDSF(list<SensorNode *> &path, ChargingNode *cn, double 
 		for (auto& s : sens_map) {
 			if (s.second->sens->id != qt_pair.first) {
 				int tm_tslot = qt_pair.second + mfTreeMatrix_timeslot[qt_pair.first][s.second->sens->id];
-				allSens.push_back(make_pair(s.second, calculateLossBSF(pathmap[qt_pair], s.second, tm_tslot, centralized, uav)));
+				//allSens.push_back(make_pair(s.second, calculateLossBSF(pathmap[qt_pair], s.second, tm_tslot, centralized, uav)));
+				double actLossSens = calculateLossBSF(pathmap[qt_pair], s.second, tm_tslot, centralized, uav);
+				if (actLossSens < Generic::getInstance().maxLoss) {
+					allSens.push_back(make_pair(s.second, actLossSens));
+				}
 			}
 		}
 		allSens.sort(MultiFlow::sortEdgesBSF);
@@ -3286,7 +3290,10 @@ void MultiFlow::calculateBSF(list<SensorNode *> &path, ChargingNode *cn, double 
 		for (auto& s : sens_map) {
 			if (s.second->sens->id != qt_pair.first) {
 				int tm_tslot = qt_pair.second + mfTreeMatrix_timeslot[qt_pair.first][s.second->sens->id];
-				allSens.push_back(make_pair(s.second, calculateLossBSF(pathmap[qt_pair], s.second, tm_tslot, centralized, uav)));
+				double actLossSens = calculateLossBSF(pathmap[qt_pair], s.second, tm_tslot, centralized, uav);
+				if (actLossSens < Generic::getInstance().maxLoss) {
+					allSens.push_back(make_pair(s.second, actLossSens));
+				}
 			}
 		}
 		allSens.sort(MultiFlow::sortEdgesBSF);

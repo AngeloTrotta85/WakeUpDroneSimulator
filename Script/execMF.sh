@@ -1,6 +1,6 @@
 #!/bin/bash
 
-BASE_OUTPUT_DIR="resultsNEW/"
+BASE_OUTPUT_DIR="results/"
 EXEC="/media/angelo/BigLinux/Programs/Eclipse/EclipseCPP/workspaces/wakeUpDrone/WakeUpDroneSimulator/Release/WakeUpDroneSimulator"
 B_RUNS=$1
 N_RUNS=$2
@@ -49,9 +49,44 @@ do
 			do
 				echo "Algorithm: ${AlgoMain}"
 				
-				for AlgoType in "bsf" "bsfdist" "bsfenergy" "dsf" "dsfdist" "dsfenergy"
-				do
-										
+				for AlgoType in "bsf" "dsf"
+				do			
+					for MaxLoss in 1 0.8 0.6
+					do										
+						for (( runs=B_RUNS; runs<=N_RUNS; runs++ ))
+						do
+							StatFolder="${BASE_OUTPUT_DIR}${3}/${AlgoMain}"
+							mkdir -p ${StatFolder}
+							#StatFile="${StatFolder}/stat_NU${Nuav}_NS${Nsensors}_A${Alpha}_R${runs}.log"
+							StatFile="${StatFolder}/stat_NU${Nuav}_NS${Nsensors}_AT${AlgoType}_T${TimeExp}.log"
+							LogFile="${StatFolder}/log_NU${Nuav}_NS${Nsensors}_AT${AlgoType}_T${TimeExp}_R${runs}.log"
+							HitFile="${StatFolder}/hit_NU${Nuav}_NS${Nsensors}_AT${AlgoType}_T${TimeExp}_R${runs}"
+							
+							STR_EXEC="$EXEC -seed ${runs} -st ${AlgoMain} -at ${AlgoType} -mfMaxLoss ${MaxLoss} -nu ${Nuav} -ns ${Nsensors} -sFR 1 -alpha ${Alpha} -time ${TimeExp} -statFile ${StatFile} -statOnrun ${StatOnRun} -stat2l ${StatToLog} -hmFile ${HitFile} -ke ${varKE} -me ${varME} -kd ${varKD} -md ${varMD} -kt ${varKT} -mt ${varMT} -uSigm ${useSigmoid}"
+								
+							echo "Executing: '${STR_EXEC}'"
+							echo -n "Run: ${runs} starting at "
+							date
+							
+							if [ -f "$StatFile" ]
+							then
+								SEARCHRUN=`cat ${StatFile} | grep "^${runs};"`
+								if [ -z "$SEARCHRUN" ]
+								then
+								      echo "Simulation Done."
+								else
+								      ${STR_EXEC} &>${LogFile}
+								fi
+								#echo "Simulation Done."
+							else
+								${STR_EXEC} &>${LogFile}
+							fi											
+						done
+					done
+				done	
+				
+				for AlgoType in "bsfdist" "bsfenergy" "dsfdist" "dsfenergy"
+				do									
 					for (( runs=B_RUNS; runs<=N_RUNS; runs++ ))
 					do
 						StatFolder="${BASE_OUTPUT_DIR}${3}/${AlgoMain}"
@@ -67,12 +102,6 @@ do
 						echo -n "Run: ${runs} starting at "
 						date
 						
-						#if [ -f "$LogFile" ]
-						#then
-						#	echo "Simulation Done."
-						#else
-						#	${STR_EXEC} &>${LogFile}
-						#fi
 						if [ -f "$StatFile" ]
 						then
 							SEARCHRUN=`cat ${StatFile} | grep "^${runs};"`
@@ -85,9 +114,7 @@ do
 							#echo "Simulation Done."
 						else
 							${STR_EXEC} &>${LogFile}
-						fi
-							
-						
+						fi											
 					done
 				done	
 			done		

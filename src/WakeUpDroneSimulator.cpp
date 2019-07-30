@@ -232,7 +232,8 @@ int main(int argc, char **argv) {
 	double pwu = 0.99;					// probability of wake-up -> p_{wakeup}
 	double pcom = 0.99;					// probability of comunication -> p_{com}
 	double bsfExponent = 3.0;			// exponent for the probability to execute the BSF
-	double rechargeRatio = 0.1;			// percentage of recarge before trying to BSF
+	double rechargeRatio = 0.1;			// percentage of recarge before trying to BSFs
+	double maxLoss = 0.8;				// max loss to take in consideration a sensor
 
 	//Statistics
 	int timeslots2log = 30;
@@ -323,6 +324,7 @@ int main(int argc, char **argv) {
 	const std::string &multiflow_static_pcomm = input.getCmdOption("-mfPcomm");
 	const std::string &multiflow_bsf_exponent = input.getCmdOption("-mfBSFexp");
 	const std::string &multiflow_bsf_recharge_ratio = input.getCmdOption("-mfRecRatio");
+	const std::string &multiflow_max_loss = input.getCmdOption("-mfMaxLoss");
 
 	if (!seedUser.empty()) {
 		int seedR = atoi(seedUser.c_str());
@@ -540,6 +542,9 @@ int main(int argc, char **argv) {
 	if (!multiflow_bsf_recharge_ratio.empty()) {
 		rechargeRatio = atof(multiflow_bsf_recharge_ratio.c_str());
 	}
+	if (!multiflow_max_loss.empty()) {
+		maxLoss = atof(multiflow_max_loss.c_str());
+	}
 
 
 	Generic::getInstance().init(timeSlot);
@@ -547,7 +552,8 @@ int main(int argc, char **argv) {
 	Generic::getInstance().setUAVParam(initEnergyUAV, flightAltitude, maxVelocity, motorPower, rechargePower, time2read, energy2read, varGPS, varPilot, varRot);
 	Generic::getInstance().setWakeUpParam(wakeupPower, wakeupMinPower, wakeupFreq, energy2wakeup, gainTx, gainRx, gUmax, aUmax, gSmax, aSmax);
 	Generic::getInstance().setStatParam(makeStateDuringSim, statFile, hitmapFile);
-	Generic::getInstance().setMultiFlowParam(tsup, ttout, numr, ps_sup, ps_tx, ps_rx, pu_sup, pu_tx, pu_rx, 4*motorPower, uavComRange, neighUAVTout, twu, pwu, pcom, bsfExponent, rechargeRatio);
+	Generic::getInstance().setMultiFlowParam(tsup, ttout, numr, ps_sup, ps_tx, ps_rx, pu_sup, pu_tx, pu_rx,
+			4*motorPower, uavComRange, neighUAVTout, twu, pwu, pcom, bsfExponent, rechargeRatio, maxLoss);
 	Loss::getInstance().init(kd, kt, ke, md, mt, me, useSigmoid, a);
 	Statistics::getInstance().init(timeslots2log);
 

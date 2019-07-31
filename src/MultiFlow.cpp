@@ -3308,6 +3308,8 @@ void MultiFlow::calculateBSF(list<SensorNode *> &path, ChargingNode *cn, double 
 		bool centralized, UavDistributed *uav, pathStats &pstat) {
 	list<pair<int, int>> q;
 
+	pair<int, int> dsfPair;
+
 	map<pair<int,int>, double> energymap;
 	map<pair<int,int>, double> gainmap;
 	list<pair<int, int>> llist;
@@ -3320,6 +3322,7 @@ void MultiFlow::calculateBSF(list<SensorNode *> &path, ChargingNode *cn, double 
 	llist.push_back(make_pair(cn->u->id, tk_tslot));
 	pathmap[make_pair(cn->u->id, tk_tslot)] = list<pair<int,int>>();
 	//phimap[make_pair(cn->u->id, tk_tslot)] = list<pair<int,int>>();
+	dsfPair = make_pair(cn->u->id, tk_tslot);
 
 	q.push_back(make_pair(cn->u->id, tk_tslot));
 
@@ -3342,7 +3345,7 @@ void MultiFlow::calculateBSF(list<SensorNode *> &path, ChargingNode *cn, double 
 			cout << "S" << pr.first->sens->id << "|" << pr.second << " ";
 		}
 		cout << endl;*/
-
+		bool firstSens = true;
 		for (auto& sj : allSens) {
 			int tm_tslot = qt_pair.second + mfTreeMatrix_timeslot[qt_pair.first][sj.first->sens->id];
 			double residualAfter = energymap[qt_pair]
@@ -3351,6 +3354,11 @@ void MultiFlow::calculateBSF(list<SensorNode *> &path, ChargingNode *cn, double 
 			pair<int, int> sj_pair = make_pair(sj.first->sens->id, tm_tslot);
 
 			if ( (pathmap.count(sj_pair) == 0) && (residualAfter > 0) ){
+
+				if (firstSens && (dsfPair == qt_pair)) {
+					dsfPair = sj_pair;
+				}
+
 				q.push_back(sj_pair);
 
 				pathmap[sj_pair] = list<pair<int,int>>();
@@ -3366,12 +3374,12 @@ void MultiFlow::calculateBSF(list<SensorNode *> &path, ChargingNode *cn, double 
 				llist.remove(qt_pair);
 				llist.push_back(sj_pair);
 
-				//if (llist.size() > (sens_map.size() * 1.5)) {
-				if (llist.size() > sens_map.size()) {
+				if (((double)llist.size()) > (((double)sens_map.size()) * 1.25)) {
+				//if (llist.size() > sens_map.size()) {
 					pair<int, int> st_pair = make_pair(-1, -1);
 					double gain = numeric_limits<double>::max();
 					for (auto& stprime : llist) {
-						if (gainmap[stprime] < gain) {
+						if ((gainmap[stprime] < gain) && (stprime != dsfPair)) {
 							st_pair = stprime;
 							gain = gainmap[stprime];
 						}
@@ -3380,6 +3388,8 @@ void MultiFlow::calculateBSF(list<SensorNode *> &path, ChargingNode *cn, double 
 					llist.remove(st_pair);
 					q.remove(st_pair);
 				}
+
+				firstSens = false;
 
 				/*
 				//if (llist.size() > (sens_map.size() * 2)) {

@@ -71,20 +71,13 @@ do
 							echo -n "Run: ${runs} starting at "
 							date
 							
-							if [ -f "$StatFile" ]
+							if [ -f "$HitFile" ]
 							then
-								SEARCHRUN=`cat ${StatFile} | grep "^${runs};"`
-								if [ -z "$SEARCHRUN" ]
-								then
-								      echo "Simulation Done."
-								else
-								      ${STR_EXEC} &>${LogFile}
-								fi
-								#echo "Simulation Done."
+								echo "Simulation Done."
 							else
 								${STR_EXEC} &>${LogFile}
 							fi											
-						done
+							done
 					done
 				done	
 				
@@ -105,19 +98,12 @@ do
 						echo -n "Run: ${runs} starting at "
 						date
 						
-						if [ -f "$StatFile" ]
+						if [ -f "$HitFile" ]
 						then
-							SEARCHRUN=`cat ${StatFile} | grep "^${runs};"`
-							if [ -z "$SEARCHRUN" ]
-							then
-							      echo "Simulation Done."
-							else
-							      ${STR_EXEC} &>${LogFile}
-							fi
-							#echo "Simulation Done."
+							echo "Simulation Done."
 						else
 							${STR_EXEC} &>${LogFile}
-						fi											
+						fi										
 					done
 				done	
 			done		

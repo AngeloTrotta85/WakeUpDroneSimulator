@@ -3464,6 +3464,7 @@ void MultiFlow::calculateBSF(list<SensorNode *> &path, ChargingNode *cn, double 
 
 		//double sumGainTime = sumgain / sumtime;
 
+
 		if(sumgain > final_gain) {
 		//if(sumGainTime > final_gain) {
 			final_pair = stprime;

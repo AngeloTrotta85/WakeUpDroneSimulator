@@ -55,7 +55,7 @@ double Loss::calculate_loss_energy(Sensor *se, int tk, std::list<Sensor *> &sl) 
 		if (maxEnergy < ss->residual_energy) maxEnergy = ss->residual_energy;
 		if (minEnergy > ss->residual_energy) minEnergy = ss->residual_energy;
 	}
-	return (1.0 - pow((se->residual_energy - minEnergy) / (maxEnergy - minEnergy), 3.0));
+	return (1.0 - pow((se->residual_energy - minEnergy) / (maxEnergy - minEnergy), 1.5));
 
 	/*
 	double ris = 0;

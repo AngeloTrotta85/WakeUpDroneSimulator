@@ -328,7 +328,7 @@ int main(int argc, char **argv) {
 	const std::string &multiflow_bsf_exponent = input.getCmdOption("-mfBSFexp");
 	const std::string &multiflow_bsf_recharge_ratio = input.getCmdOption("-mfRecRatio");
 	const std::string &multiflow_max_loss = input.getCmdOption("-mfMaxLoss");
-	const std::string &multiflow_use_POT = input.getCmdOption("-mfUsePOIT");
+	const std::string &multiflow_use_POT = input.getCmdOption("-mfUsePOT");
 
 	if (!seedUser.empty()) {
 		int seedR = atoi(seedUser.c_str());

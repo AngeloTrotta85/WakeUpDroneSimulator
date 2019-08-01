@@ -97,7 +97,7 @@ public:
 	void setMultiFlowParam(double tsup, double ttout, int numr, double ps_sup, double ps_tx,
 			double ps_rx, double pu_sup, double pu_tx, double pu_rx, double pu_fly,
 			double uavCR, double nUAVTout, double twu, double pwu, double pcom, double bsfExp,
-			double recRatio, double ml) {
+			double recRatio, double ml, bool usePOT) {
 		tstartup = tsup;
 		ttimeout = ttout;
 		nr = numr;
@@ -116,6 +116,7 @@ public:
 		bsfExponent = bsfExp;
 		rechargeRatio = recRatio;
 		maxLoss = ml;
+		usePsiOverTime = usePOT;
 	}
 
 	double getTime2Travel(MyCoord start, MyCoord end);
@@ -179,6 +180,8 @@ public:
 	double bsfExponent;
 	double rechargeRatio;
 	double maxLoss;
+
+	bool usePsiOverTime;
 };
 
 #endif /* GENERIC_H_ */

@@ -235,6 +235,7 @@ int main(int argc, char **argv) {
 	double bsfExponent = 3.0;			// exponent for the probability to execute the BSF
 	double rechargeRatio = 0.1;			// percentage of recarge before trying to BSFs
 	double maxLoss = 0.8;				// max loss to take in consideration a sensor
+	bool usePOT = false;				// use psi/time to search for the best path in BSF
 
 	//Statistics
 	int timeslots2log = 30;
@@ -327,6 +328,7 @@ int main(int argc, char **argv) {
 	const std::string &multiflow_bsf_exponent = input.getCmdOption("-mfBSFexp");
 	const std::string &multiflow_bsf_recharge_ratio = input.getCmdOption("-mfRecRatio");
 	const std::string &multiflow_max_loss = input.getCmdOption("-mfMaxLoss");
+	const std::string &multiflow_use_POT = input.getCmdOption("-mfUsePOIT");
 
 	if (!seedUser.empty()) {
 		int seedR = atoi(seedUser.c_str());
@@ -550,6 +552,9 @@ int main(int argc, char **argv) {
 	if (!multiflow_max_loss.empty()) {
 		maxLoss = atof(multiflow_max_loss.c_str());
 	}
+	if (!multiflow_use_POT.empty()) {
+		usePOT = atoi(multiflow_use_POT.c_str()) != 0;
+	}
 
 
 	Generic::getInstance().init(timeSlot);
@@ -558,7 +563,7 @@ int main(int argc, char **argv) {
 	Generic::getInstance().setWakeUpParam(wakeupPower, wakeupMinPower, wakeupFreq, energy2wakeup, gainTx, gainRx, gUmax, aUmax, gSmax, aSmax);
 	Generic::getInstance().setStatParam(makeStateDuringSim, statFile, hitmapFile);
 	Generic::getInstance().setMultiFlowParam(tsup, ttout, numr, ps_sup, ps_tx, ps_rx, pu_sup, pu_tx, pu_rx,
-			4*motorPower, uavComRange, neighUAVTout, twu, pwu, pcom, bsfExponent, rechargeRatio, maxLoss);
+			4*motorPower, uavComRange, neighUAVTout, twu, pwu, pcom, bsfExponent, rechargeRatio, maxLoss, usePOT);
 	Loss::getInstance().init(kd, kt, ke, md, mt, me, useSigmoid, a);
 	Statistics::getInstance().init(timeslots2log);
 

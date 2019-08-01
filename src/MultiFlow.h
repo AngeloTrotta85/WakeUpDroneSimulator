@@ -94,6 +94,9 @@ public:
 	MyCoord pos;
 	double lastTimestamp;
 	int lastTimestamp_tslot;
+	int rechargeCounter;
+	int sumRechargeTime_tslot;
+	double sumRechargeTime;
 };
 
 class SensorNode {
@@ -326,6 +329,8 @@ public:
 	double calcIndex_Tree(void);
 	bool updateSensorsEnergy_Tree(int starttime, int endtime);
 	int calcNumRead_Tree(void);
+	int calcNumRecharge_Tot(void);
+	double calcNumRechargeTime_Tot(void);
 	void calcFinalGainsTree(double &minGain, double &maxGain, double &varGain, double &avgGain);
 
 	void run_uav_tree(UavDistributed *uav, double simTime, int simTime_tslot) ;

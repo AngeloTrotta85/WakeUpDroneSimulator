@@ -791,6 +791,12 @@ void Simulator::finish_tree_multiflow(std::vector<CoordCluster *> &clustVec, std
 			double minGain, maxGain, varGain, avgGain;
 			mf->calcFinalGainsTree(minGain, maxGain, varGain, avgGain);
 
+			int numRechargeTot = mf->calcNumRecharge_Tot();
+			double numRechargeRelative = ((double) numRechargeTot) / ((double) clustVec.size());
+
+			double numRechargeTimeTot = mf->calcNumRechargeTime_Tot();
+			double numRechargeTimeRelative = numRechargeTimeTot / ((double) clustVec.size());
+
 			ofs 	<< RandomGenerator::getInstance().getSeed() << ";"
 					<< lifetimeSec << ";"
 					<< lifetimeHour << ";"
@@ -803,7 +809,11 @@ void Simulator::finish_tree_multiflow(std::vector<CoordCluster *> &clustVec, std
 					<< minGain << ";"
 					<< maxGain << ";"
 					<< varGain << ";"
-					<< avgGain
+					<< avgGain << ";"
+					<< numRechargeTot << ";"
+					<< numRechargeRelative << ";"
+					<< numRechargeTimeTot << ";"
+					<< numRechargeTimeRelative
 					<< endl;
 
 		}
@@ -883,6 +893,12 @@ void Simulator::finish_tree_multiflow_distr(std::vector<CoordCluster *> &clustVe
 			double minGain, maxGain, varGain, avgGain;
 			mf->calcFinalGainsTree(minGain, maxGain, varGain, avgGain);
 
+			int numRechargeTot = mf->calcNumRecharge_Tot();
+			double numRechargeRelative = ((double) numRechargeTot) / ((double) clustVec.size());
+
+			double numRechargeTimeTot = mf->calcNumRechargeTime_Tot();
+			double numRechargeTimeRelative = numRechargeTimeTot / ((double) clustVec.size());
+
 			ofs 	<< RandomGenerator::getInstance().getSeed() << ";"
 					<< lifetimeSec << ";"
 					<< lifetimeHour << ";"
@@ -895,7 +911,11 @@ void Simulator::finish_tree_multiflow_distr(std::vector<CoordCluster *> &clustVe
 					<< minGain << ";"
 					<< maxGain << ";"
 					<< varGain << ";"
-					<< avgGain
+					<< avgGain << ";"
+					<< numRechargeTot << ";"
+					<< numRechargeRelative << ";"
+					<< numRechargeTimeTot << ";"
+					<< numRechargeTimeRelative
 					<< endl;
 
 		}

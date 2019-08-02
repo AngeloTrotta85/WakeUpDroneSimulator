@@ -55,30 +55,33 @@ do
 									
 				MaxLoss=0.99
 				for AlgoType in "bsfdist" "bsfenergy" "dsfdist" "dsfenergy" "bsf" "dsf"
-				do									
-					for (( runs=B_RUNS; runs<=N_RUNS; runs++ ))
-					do
-						StatFolder="${BASE_OUTPUT_DIR}${TEST_NAME}/${AlgoMain}"
-						mkdir -p ${StatFolder}
-						#StatFile="${StatFolder}/stat_NU${Nuav}_NS${Nsensors}_A${Alpha}_ML1_R${runs}.log"
-						StatFile="${StatFolder}/stat_NU${Nuav}_NS${Nsensors}_AT${AlgoType}_T${TimeExp}_ML${MaxLoss}.log"
-						LogFile="${StatFolder}/log_NU${Nuav}_NS${Nsensors}_AT${AlgoType}_T${TimeExp}_ML${MaxLoss}_R${runs}.log"
-						HitFile="${StatFolder}/hit_NU${Nuav}_NS${Nsensors}_AT${AlgoType}_T${TimeExp}_ML${MaxLoss}_R${runs}"
-						
-						STR_EXEC="$EXEC -seed ${runs} -sFE ${fullEnergy} -st ${AlgoMain} -at ${AlgoType} -mfMaxLoss ${MaxLoss} -nu ${Nuav} -ns ${Nsensors} -sFR 1 -alpha ${Alpha} -time ${TimeExp} -statFile ${StatFile} -statOnrun ${StatOnRun} -stat2l ${StatToLog} -hmFile ${HitFile} -ke ${varKE} -me ${varME} -kd ${varKD} -md ${varMD} -kt ${varKT} -mt ${varMT} -uSigm ${useSigmoid}"
+				do		
+					for UsePOT in 0 1
+					do							
+						for (( runs=B_RUNS; runs<=N_RUNS; runs++ ))
+						do
+							StatFolder="${BASE_OUTPUT_DIR}${TEST_NAME}/${AlgoMain}"
+							mkdir -p ${StatFolder}
+							#StatFile="${StatFolder}/stat_NU${Nuav}_NS${Nsensors}_A${Alpha}_ML1_R${runs}.log"
+							StatFile="${StatFolder}/stat_NU${Nuav}_NS${Nsensors}_AT${AlgoType}_T${TimeExp}_UP${UsePOT}.log"
+							LogFile="${StatFolder}/log_NU${Nuav}_NS${Nsensors}_AT${AlgoType}_T${TimeExp}_UP${UsePOT}_R${runs}.log"
+							HitFile="${StatFolder}/hit_NU${Nuav}_NS${Nsensors}_AT${AlgoType}_T${TimeExp}_UP${UsePOT}_R${runs}"
 							
-						echo "Executing: '${STR_EXEC}'"
-						echo -n "Run: ${runs} starting at "
-						date
+							STR_EXEC="$EXEC -seed ${runs} -sFE ${fullEnergy} -st ${AlgoMain} -at ${AlgoType} -mfUsePOT ${UsePOT} -mfMaxLoss ${MaxLoss} -nu ${Nuav} -ns ${Nsensors} -sFR 1 -alpha ${Alpha} -time ${TimeExp} -statFile ${StatFile} -statOnrun ${StatOnRun} -stat2l ${StatToLog} -hmFile ${HitFile} -ke ${varKE} -me ${varME} -kd ${varKD} -md ${varMD} -kt ${varKT} -mt ${varMT} -uSigm ${useSigmoid}"
+								
+							echo "Executing: '${STR_EXEC}'"
+							echo -n "Run: ${runs} starting at "
+							date
 
-						if [ -f "$HitFile" ]
-						then
-							echo "Simulation Done."
-						else
-							${STR_EXEC} &>${LogFile}
-						fi																
-					done
-				done	
+							if [ -f "${HitFile}.log" ]
+							then
+								echo "Simulation Done."
+							else
+								${STR_EXEC} &>${LogFile}
+							fi																
+						done
+					done	
+				done
 			done		
 		done
 	done
@@ -113,28 +116,31 @@ do
 									
 				MaxLoss=0.99
 				for AlgoType in "bsfdist" "bsfenergy" "dsfdist" "dsfenergy" "bsf" "dsf"
-				do									
-					for (( runs=B_RUNS; runs<=N_RUNS; runs++ ))
-					do
-						StatFolder="${BASE_OUTPUT_DIR}${TEST_NAME}/${AlgoMain}"
-						mkdir -p ${StatFolder}
-						#StatFile="${StatFolder}/stat_NU${Nuav}_NS${Nsensors}_A${Alpha}_ML1_R${runs}.log"
-						StatFile="${StatFolder}/stat_NU${Nuav}_NS${Nsensors}_AT${AlgoType}_T${TimeExp}_ML${MaxLoss}.log"
-						LogFile="${StatFolder}/log_NU${Nuav}_NS${Nsensors}_AT${AlgoType}_T${TimeExp}_ML${MaxLoss}_R${runs}.log"
-						HitFile="${StatFolder}/hit_NU${Nuav}_NS${Nsensors}_AT${AlgoType}_T${TimeExp}_ML${MaxLoss}_R${runs}"
-						
-						STR_EXEC="$EXEC -seed ${runs} -sFE ${fullEnergy} -st ${AlgoMain} -at ${AlgoType} -mfMaxLoss ${MaxLoss} -nu ${Nuav} -ns ${Nsensors} -sFR 1 -alpha ${Alpha} -time ${TimeExp} -statFile ${StatFile} -statOnrun ${StatOnRun} -stat2l ${StatToLog} -hmFile ${HitFile} -ke ${varKE} -me ${varME} -kd ${varKD} -md ${varMD} -kt ${varKT} -mt ${varMT} -uSigm ${useSigmoid}"
+				do		
+					for UsePOT in 0 1
+					do										
+						for (( runs=B_RUNS; runs<=N_RUNS; runs++ ))
+						do
+							StatFolder="${BASE_OUTPUT_DIR}${TEST_NAME}/${AlgoMain}"
+							mkdir -p ${StatFolder}
+							#StatFile="${StatFolder}/stat_NU${Nuav}_NS${Nsensors}_A${Alpha}_ML1_R${runs}.log"
+							StatFile="${StatFolder}/stat_NU${Nuav}_NS${Nsensors}_AT${AlgoType}_T${TimeExp}_UP${UsePOT}.log"
+							LogFile="${StatFolder}/log_NU${Nuav}_NS${Nsensors}_AT${AlgoType}_T${TimeExp}_UP${UsePOT}_R${runs}.log"
+							HitFile="${StatFolder}/hit_NU${Nuav}_NS${Nsensors}_AT${AlgoType}_T${TimeExp}_UP${UsePOT}_R${runs}"
 							
-						echo "Executing: '${STR_EXEC}'"
-						echo -n "Run: ${runs} starting at "
-						date
+							STR_EXEC="$EXEC -seed ${runs} -sFE ${fullEnergy} -st ${AlgoMain} -at ${AlgoType} -mfUsePOT ${UsePOT} -mfMaxLoss ${MaxLoss} -nu ${Nuav} -ns ${Nsensors} -sFR 1 -alpha ${Alpha} -time ${TimeExp} -statFile ${StatFile} -statOnrun ${StatOnRun} -stat2l ${StatToLog} -hmFile ${HitFile} -ke ${varKE} -me ${varME} -kd ${varKD} -md ${varMD} -kt ${varKT} -mt ${varMT} -uSigm ${useSigmoid}"
+								
+							echo "Executing: '${STR_EXEC}'"
+							echo -n "Run: ${runs} starting at "
+							date
 
-						if [ -f "$HitFile" ]
-						then
-							echo "Simulation Done."
-						else
-							${STR_EXEC} &>${LogFile}
-						fi																
+							if [ -f "${HitFile}.log" ]
+							then
+								echo "Simulation Done."
+							else
+								${STR_EXEC} &>${LogFile}
+							fi																
+						done
 					done
 				done	
 			done		
@@ -145,7 +151,7 @@ done
 
 
 
-
+dischargeRate=60
 
 for TimeExp in 2000000000
 do
@@ -172,28 +178,32 @@ do
 									
 				MaxLoss=0.99
 				for AlgoType in "bsfdist" "bsfenergy" "dsfdist" "dsfenergy" "bsf" "dsf"
-				do									
-					for (( runs=B_RUNS; runs<=N_RUNS; runs++ ))
-					do
-						StatFolder="${BASE_OUTPUT_DIR}${TEST_NAME}/${AlgoMain}"
-						mkdir -p ${StatFolder}
-						#StatFile="${StatFolder}/stat_NU${Nuav}_NS${Nsensors}_A${Alpha}_ML1_R${runs}.log"
-						StatFile="${StatFolder}/stat_NU${Nuav}_NS${Nsensors}_AT${AlgoType}_T${TimeExp}_ML${MaxLoss}.log"
-						LogFile="${StatFolder}/log_NU${Nuav}_NS${Nsensors}_AT${AlgoType}_T${TimeExp}_ML${MaxLoss}_R${runs}.log"
-						HitFile="${StatFolder}/hit_NU${Nuav}_NS${Nsensors}_AT${AlgoType}_T${TimeExp}_ML${MaxLoss}_R${runs}"
-						
-						STR_EXEC="$EXEC -seed ${runs} -sFE ${fullEnergy} -st ${AlgoMain} -at ${AlgoType} -mfMaxLoss ${MaxLoss} -nu ${Nuav} -ns ${Nsensors} -sFR 1 -alpha ${Alpha} -time ${TimeExp} -statFile ${StatFile} -statOnrun ${StatOnRun} -stat2l ${StatToLog} -hmFile ${HitFile} -ke ${varKE} -me ${varME} -kd ${varKD} -md ${varMD} -kt ${varKT} -mt ${varMT} -uSigm ${useSigmoid}"
+				do		
+					#for UsePOT in 0 1
+					for UsePOT in 1
+					do									
+						for (( runs=B_RUNS; runs<=N_RUNS; runs++ ))
+						do
+							StatFolder="${BASE_OUTPUT_DIR}${TEST_NAME}/${AlgoMain}"
+							mkdir -p ${StatFolder}
+							#StatFile="${StatFolder}/stat_NU${Nuav}_NS${Nsensors}_A${Alpha}_ML1_R${runs}.log"
+							StatFile="${StatFolder}/stat_NU${Nuav}_NS${Nsensors}_AT${AlgoType}_T${TimeExp}_UP${UsePOT}.log"
+							LogFile="${StatFolder}/log_NU${Nuav}_NS${Nsensors}_AT${AlgoType}_T${TimeExp}_UP${UsePOT}_R${runs}.log"
+							HitFile="${StatFolder}/hit_NU${Nuav}_NS${Nsensors}_AT${AlgoType}_T${TimeExp}_UP${UsePOT}_R${runs}"
 							
-						echo "Executing: '${STR_EXEC}'"
-						echo -n "Run: ${runs} starting at "
-						date
+							STR_EXEC="$EXEC -seed ${runs} -ssd ${dischargeRate} -sFE ${fullEnergy} -st ${AlgoMain} -at ${AlgoType} -mfUsePOT ${UsePOT} -mfMaxLoss ${MaxLoss} -nu ${Nuav} -ns ${Nsensors} -sFR 1 -alpha ${Alpha} -time ${TimeExp} -statFile ${StatFile} -statOnrun ${StatOnRun} -stat2l ${StatToLog} -hmFile ${HitFile} -ke ${varKE} -me ${varME} -kd ${varKD} -md ${varMD} -kt ${varKT} -mt ${varMT} -uSigm ${useSigmoid}"
+								
+							echo "Executing: '${STR_EXEC}'"
+							echo -n "Run: ${runs} starting at "
+							date
 
-						if [ -f "$HitFile" ]
-						then
-							echo "Simulation Done."
-						else
-							${STR_EXEC} &>${LogFile}
-						fi																
+							if [ -f "${HitFile}.log" ]
+							then
+								echo "Simulation Done."
+							else
+								${STR_EXEC} &>${LogFile}
+							fi																
+						done
 					done
 				done	
 			done		
@@ -230,28 +240,32 @@ do
 									
 				MaxLoss=0.99
 				for AlgoType in "bsfdist" "bsfenergy" "dsfdist" "dsfenergy" "bsf" "dsf"
-				do									
-					for (( runs=B_RUNS; runs<=N_RUNS; runs++ ))
-					do
-						StatFolder="${BASE_OUTPUT_DIR}${TEST_NAME}/${AlgoMain}"
-						mkdir -p ${StatFolder}
-						#StatFile="${StatFolder}/stat_NU${Nuav}_NS${Nsensors}_A${Alpha}_ML1_R${runs}.log"
-						StatFile="${StatFolder}/stat_NU${Nuav}_NS${Nsensors}_AT${AlgoType}_T${TimeExp}_ML${MaxLoss}.log"
-						LogFile="${StatFolder}/log_NU${Nuav}_NS${Nsensors}_AT${AlgoType}_T${TimeExp}_ML${MaxLoss}_R${runs}.log"
-						HitFile="${StatFolder}/hit_NU${Nuav}_NS${Nsensors}_AT${AlgoType}_T${TimeExp}_ML${MaxLoss}_R${runs}"
-						
-						STR_EXEC="$EXEC -seed ${runs} -sFE ${fullEnergy} -st ${AlgoMain} -at ${AlgoType} -mfMaxLoss ${MaxLoss} -nu ${Nuav} -ns ${Nsensors} -sFR 1 -alpha ${Alpha} -time ${TimeExp} -statFile ${StatFile} -statOnrun ${StatOnRun} -stat2l ${StatToLog} -hmFile ${HitFile} -ke ${varKE} -me ${varME} -kd ${varKD} -md ${varMD} -kt ${varKT} -mt ${varMT} -uSigm ${useSigmoid}"
+				do		
+					#for UsePOT in 0 1
+					for UsePOT in 1
+					do									
+						for (( runs=B_RUNS; runs<=N_RUNS; runs++ ))
+						do
+							StatFolder="${BASE_OUTPUT_DIR}${TEST_NAME}/${AlgoMain}"
+							mkdir -p ${StatFolder}
+							#StatFile="${StatFolder}/stat_NU${Nuav}_NS${Nsensors}_A${Alpha}_ML1_R${runs}.log"
+							StatFile="${StatFolder}/stat_NU${Nuav}_NS${Nsensors}_AT${AlgoType}_T${TimeExp}_UP${UsePOT}.log"
+							LogFile="${StatFolder}/log_NU${Nuav}_NS${Nsensors}_AT${AlgoType}_T${TimeExp}_UP${UsePOT}_R${runs}.log"
+							HitFile="${StatFolder}/hit_NU${Nuav}_NS${Nsensors}_AT${AlgoType}_T${TimeExp}_UP${UsePOT}_R${runs}"
 							
-						echo "Executing: '${STR_EXEC}'"
-						echo -n "Run: ${runs} starting at "
-						date
+							STR_EXEC="$EXEC -seed ${runs} -ssd ${dischargeRate} -sFE ${fullEnergy} -st ${AlgoMain} -at ${AlgoType} -mfUsePOT ${UsePOT} -mfMaxLoss ${MaxLoss} -nu ${Nuav} -ns ${Nsensors} -sFR 1 -alpha ${Alpha} -time ${TimeExp} -statFile ${StatFile} -statOnrun ${StatOnRun} -stat2l ${StatToLog} -hmFile ${HitFile} -ke ${varKE} -me ${varME} -kd ${varKD} -md ${varMD} -kt ${varKT} -mt ${varMT} -uSigm ${useSigmoid}"
+								
+							echo "Executing: '${STR_EXEC}'"
+							echo -n "Run: ${runs} starting at "
+							date
 
-						if [ -f "$HitFile" ]
-						then
-							echo "Simulation Done."
-						else
-							${STR_EXEC} &>${LogFile}
-						fi																
+							if [ -f "${HitFile}.log" ]
+							then
+								echo "Simulation Done."
+							else
+								${STR_EXEC} &>${LogFile}
+							fi																
+						done
 					done
 				done	
 			done		

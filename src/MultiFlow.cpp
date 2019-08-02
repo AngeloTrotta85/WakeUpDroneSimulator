@@ -71,7 +71,7 @@ void MultiFlow::addChargStationAndUAV_distributed(MyCoord c, UAV *u) {
 	uav_list.push_back(newuav);
 }
 
-ChargingNode *MultiFlow::getLeftMostUAV(int end_time) {
+ChargingNode *MultiFlow::getLeftMostUAV(double end_time) {
 	ChargingNode *ris = cs_map.begin()->second;
 	int risTime = ris->lastTimestamp;
 
@@ -2462,6 +2462,7 @@ void MultiFlow::run_tree_multiflow(double end_time) {
 		calculateTreeBSF_and_UpdateMF(leftmost, end_time);
 
 		leftmost = getLeftMostUAV(end_time);
+
 		if (leftmost == nullptr) {
 			actUAVTimeStamp = end_time;
 			if (actSensorTimeStamp < actUAVTimeStamp) {
@@ -2476,6 +2477,11 @@ void MultiFlow::run_tree_multiflow(double end_time) {
 			break;
 		}
 		else {
+
+			cerr << "The Leftmost UAV is U" << leftmost->u->id
+					<< " at time " << leftmost->lastTimestamp
+					<< endl;
+
 			double lastTS = actUAVTimeStamp;
 			actUAVTimeStamp = leftmost->lastTimestamp;
 			if (actUAVTimeStamp < lastTS) {
@@ -2539,6 +2545,8 @@ void MultiFlow::calculateTreeBSF_and_UpdateMF(ChargingNode *leftmost, double end
 	}
 	//while ((uavEnergy < leftmost->u->max_energy) && (uavTime < end_time));
 
+	cerr << "Found " << bestTSPs.size() << " paths" << endl;
+
 	list<SensorNode *> bestTSP;
 	pathStats topStat;
 
@@ -2573,6 +2581,12 @@ void MultiFlow::calculateTreeBSF_and_UpdateMF(ChargingNode *leftmost, double end
 		break;
 	}
 
+	cerr << "Found path of size " << bestTSP.size()
+			<< " with gain: " << topStat.total_gain
+			<< " total time: " << topStat.time_cost
+			<< " with recharge time slots: " << rechargeBulk * topStat.recharge_bulk
+			<< endl;
+
 	if (bestTSP.size() > 0) {
 		if (rechargeBulk > 0) {
 			leftmost->rechargeCounter++;
@@ -2587,9 +2601,20 @@ void MultiFlow::calculateTreeBSF_and_UpdateMF(ChargingNode *leftmost, double end
 				(((double) (rechargeBulk * topStat.recharge_bulk)) * Generic::getInstance().timeSlot * Generic::getInstance().rechargeStation_power));
 	}
 	else {
-		leftmost->lastTimestamp = end_time;
-		leftmost->lastTimestamp_tslot = ceil(end_time / Generic::getInstance().timeSlot);
-		leftmost->u->residual_energy = leftmost->u->max_energy;
+
+		// stay one bulk of recharge
+		leftmost->sumRechargeTime_tslot += rechargeBulk;
+		leftmost->sumRechargeTime += rechargeBulk * Generic::getInstance().timeSlot;
+
+		leftmost->lastTimestamp_tslot += rechargeBulk;
+		leftmost->lastTimestamp = ((double) leftmost->lastTimestamp_tslot) * Generic::getInstance().timeSlot;
+		leftmost->u->residual_energy = min(leftmost->u->max_energy,
+				leftmost->u->residual_energy +
+				(((double) rechargeBulk) * Generic::getInstance().timeSlot * Generic::getInstance().rechargeStation_power));
+
+		//leftmost->lastTimestamp = end_time;
+		//leftmost->lastTimestamp_tslot = ceil(end_time / Generic::getInstance().timeSlot);
+		//leftmost->u->residual_energy = leftmost->u->max_energy;
 	}
 
 	/*
@@ -4228,6 +4253,12 @@ void MultiFlow::run_uav_tree(UavDistributed *uav, double simTime, int simTime_ts
 					if (uav->rechargeBulk == 0) {
 						uav->us = UavDistributed::MOVING;
 					}
+				}
+				else {
+					uav->cn->sumRechargeTime_tslot += rechargeBulkSlot;
+					uav->cn->sumRechargeTime += rechargeBulkSlot * Generic::getInstance().timeSlot;
+
+					uav->rechargeBulk = rechargeBulkSlot;
 				}
 
 

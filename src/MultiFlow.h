@@ -253,7 +253,7 @@ public:
 	double calcProb_EReceivedTime(double e, double deltae, double h, int t);
 	double calculate_pWU(double h, int twu, double sigma2loc, double sigma2rho);
 
-	ChargingNode *getLeftMostUAV(int end_time);
+	ChargingNode *getLeftMostUAV(double end_time);
 	double sensor_energy_loss_read(double pwu);
 	bool updateSensorsEnergy(int starttime, int endtime);
 

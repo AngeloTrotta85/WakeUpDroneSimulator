@@ -201,6 +201,7 @@ int main(int argc, char **argv) {
 	double sensorSelfDischarge = 8;		// Percentage per month (https://batteryuniversity.com/learn/article/elevating_self_discharge)
 	double eON = 0.000494;				// Joule -> from ICC
 	double eBOOT = 0.0075;				// Joule -> from ICC
+	double eSTB = 0;//0.00001;				// Watt -> from ICC
 	bool fullRandomSensors = false;		// true to make random from 0 to MAX
 	bool fullEnergySensors = false;		// true to make energy all to MAX
 
@@ -290,6 +291,7 @@ int main(int argc, char **argv) {
 	const std::string &energy_sensor = input.getCmdOption("-ieSens");
 	const std::string &energy_eon = input.getCmdOption("-eON");
 	const std::string &energy_eboot = input.getCmdOption("-eBOOT");
+	const std::string &energy_estb = input.getCmdOption("-eSTB");
 	const std::string &sensor_self_discharge = input.getCmdOption("-ssd");
 	const std::string &sensor_full_random = input.getCmdOption("-sFR");
 	const std::string &sensor_full_energy = input.getCmdOption("-sFE");
@@ -396,6 +398,9 @@ int main(int argc, char **argv) {
 	}
 	if (!energy_eboot.empty()) {
 		eBOOT = atof(energy_eboot.c_str());
+	}
+	if (!energy_estb.empty()) {
+		eSTB = atof(energy_estb.c_str());
 	}
 	if (!sensor_self_discharge.empty()) {
 		sensorSelfDischarge = atof(sensor_self_discharge.c_str());
@@ -556,9 +561,13 @@ int main(int argc, char **argv) {
 		usePOT = atoi(multiflow_use_POT.c_str()) != 0;
 	}
 
+	// HARD-CODED CHECK
+	if (eSTB > 0) {
+		wakeupPower = 0;
+	}
 
 	Generic::getInstance().init(timeSlot);
-	Generic::getInstance().setSensorParam(initEnergySensor, sensorSelfDischarge, eON, eBOOT, fullRandomSensors, fullEnergySensors);
+	Generic::getInstance().setSensorParam(initEnergySensor, sensorSelfDischarge, eON, eBOOT, eSTB, fullRandomSensors, fullEnergySensors);
 	Generic::getInstance().setUAVParam(initEnergyUAV, flightAltitude, maxVelocity, motorPower, rechargePower, time2read, energy2read, varGPS, varPilot, varRot);
 	Generic::getInstance().setWakeUpParam(wakeupPower, wakeupMinPower, wakeupFreq, energy2wakeup, gainTx, gainRx, gUmax, aUmax, gSmax, aSmax);
 	Generic::getInstance().setStatParam(makeStateDuringSim, statFile, hitmapFile);

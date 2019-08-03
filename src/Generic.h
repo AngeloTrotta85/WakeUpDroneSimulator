@@ -40,11 +40,12 @@ public:
 	void init(double ts) {
 		timeSlot = ts;
 	}
-	void setSensorParam(double initEnergySensor, double sensorSelfDischarge, double eON, double eBOOT,
+	void setSensorParam(double initEnergySensor, double sensorSelfDischarge, double eON, double eBOOT, double eSTB,
 			bool fullRandom, bool fullEnergy) {
 		initSensorEnergy = initEnergySensor;
 		energyON = eON;
 		energyBOOT = eBOOT;
+		energySTB = eSTB;
 		fullRandomInit = fullRandom;
 		fullEnergySensorInit = fullEnergy;
 
@@ -143,6 +144,7 @@ public:
 	bool fullEnergySensorInit;
 	double energyON;
 	double energyBOOT;
+	double energySTB;
 	double wakeupTxPower;
 	double wakeupTxMinPower;
 	double wakeupTxFrequency;

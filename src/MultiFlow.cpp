@@ -3608,7 +3608,7 @@ double MultiFlow::calculateLossBSF(list<pair<int,int>> &phi, SensorNode *sn, int
 				//double discount = (closestThenMe + 1.0) / (((double) uav->neighMap.size()) + 1.0);
 				double penalty = 0.0;
 				if (uav->neighMap.size() > 0) {
-					penalty = closestThenMe / ((double) uav->neighMap.size());
+					penalty = pow(closestThenMe / ((double) uav->neighMap.size()), 3.0);
 				}
 				//cout << "        Inside calcLossSensor. Calculated discount: " << discount << endl << flush;
 
@@ -3782,6 +3782,7 @@ bool MultiFlow::updateSensorsEnergy_Tree(int starttime, int endtime) {
 		for (int i = (starttime+1); i <= endtime; i++) {
 			//s->sens->residual_energy -= calcPowEtaSens(s->sens->residual_energy) * Generic::getInstance().timeSlot;
 			s->sens->residual_energy -= calcPowEtaSens(s->sens->residual_energy, Generic::getInstance().timeSlot);
+			s->sens->residual_energy -= Generic::getInstance().energySTB * Generic::getInstance().timeSlot;
 		}
 
 		for (auto& l : s->real_wakeup) {
@@ -3882,6 +3883,7 @@ void MultiFlow::run_tree_multiflow_distr(double end_time) {
 		//cout << "Removing self-discharge energy from sensors" << endl << flush;
 		for (auto& s : sens_list) {
 			s->sens->residual_energy -= calcPowEtaSens(s->sens->residual_energy, Generic::getInstance().timeSlot);
+			s->sens->residual_energy -= Generic::getInstance().energySTB * Generic::getInstance().timeSlot;
 
 			if (s->sens->residual_energy < 0) {
 				sensAlive = false;

@@ -34,11 +34,11 @@ Sensor::Sensor(MyCoord sensCoord, double re, int id_new) {
 void Sensor::generateRandomSensors(std::list<Sensor *> &pl, int ss, int ns) {
 	for (int i : boost::irange(0, ns)) { // i goes from 0 to ns-1
 		double randomEnergy = 0;
-		if (Generic::getInstance().fullRandomInit) {
-			randomEnergy = RandomGenerator::getInstance().getRealUniform(0.0, Generic::getInstance().initSensorEnergy);
-		}
-		else if (Generic::getInstance().fullEnergySensorInit) {
+		if (Generic::getInstance().fullEnergySensorInit) {
 			randomEnergy = Generic::getInstance().initSensorEnergy;
+		}
+		else if (Generic::getInstance().fullRandomInit) {
+			randomEnergy = RandomGenerator::getInstance().getRealUniform(0.0, Generic::getInstance().initSensorEnergy);
 		}
 		else {
 			randomEnergy = RandomGenerator::getInstance().getRealNormal(Generic::getInstance().initSensorEnergy, Generic::getInstance().initSensorEnergy / 50.0);

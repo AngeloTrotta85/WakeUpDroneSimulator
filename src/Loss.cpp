@@ -55,7 +55,15 @@ double Loss::calculate_loss_energy(Sensor *se, int tk, std::list<Sensor *> &sl) 
 		if (maxEnergy < ss->residual_energy) maxEnergy = ss->residual_energy;
 		if (minEnergy > ss->residual_energy) minEnergy = ss->residual_energy;
 	}
-	return (1.0 - pow((se->residual_energy - minEnergy) / (maxEnergy - minEnergy), 1.5));
+	//return (1.0 - pow((se->residual_energy - minEnergy) / (maxEnergy - minEnergy), 1.5));
+
+	double halfVal = (maxEnergy + minEnergy) / 2.0;
+	double val099 = (halfVal + minEnergy) / 2.0;
+	double slope = log(0.0101) / (val099 - halfVal);
+
+	return (  1.0 / ( 1.0 + exp((se->residual_energy - halfVal) * slope) )  );
+
+
 
 	/*
 	double ris = 0;
@@ -90,7 +98,13 @@ double Loss::calculate_loss_energy_onNumber(double e, int tk, std::list<double> 
 		if (maxEnergy < ee) maxEnergy = ee;
 		if (minEnergy > ee) minEnergy = ee;
 	}
-	return (1.0 - pow((e - minEnergy) / (maxEnergy - minEnergy), 3.0));
+	//return (1.0 - pow((e - minEnergy) / (maxEnergy - minEnergy), 3.0));
+
+	double halfVal = (maxEnergy + minEnergy) / 2.0;
+	double val099 = (halfVal + minEnergy) / 2.0;
+	double slope = log(0.0101) / (val099 - halfVal);
+
+	return (  1.0 / ( 1.0 + exp((e - halfVal) * slope) )  );
 
 	/*
 	double ris = 0;

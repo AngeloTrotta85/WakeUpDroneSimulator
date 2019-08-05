@@ -3566,10 +3566,12 @@ double MultiFlow::calculateLossBSF(list<pair<int,int>> &phi, SensorNode *sn, int
 	// check over the active readings
 	for (auto& s : sens_list) {
 		if (centralized){
-			for (auto& r : s->readings) {
+			if (s->readings.size() > 0) {
+				double rtime = s->readings.back().readTime;
+
 				double actLoss = Loss::algebraic_sum(
 						Loss::getInstance().calculate_loss_distance(s->sens, sn->sens)
-						* Loss::getInstance().calculate_loss_time(r.readTime, tm),
+						* Loss::getInstance().calculate_loss_time(rtime, tm),
 						Loss::getInstance().calculate_loss_energy(sn->sens, tm_tslot, ssList));
 
 				/*cout << "Calc loss for S" << sn->sens->id << " to S" << s->sens->id
@@ -3583,9 +3585,20 @@ double MultiFlow::calculateLossBSF(list<pair<int,int>> &phi, SensorNode *sn, int
 					ris = actLoss;
 				}
 			}
+			/*for (auto& r : s->readings) {
+				double actLoss = Loss::algebraic_sum(
+						Loss::getInstance().calculate_loss_distance(s->sens, sn->sens)
+						* Loss::getInstance().calculate_loss_time(r.readTime, tm),
+						Loss::getInstance().calculate_loss_energy(sn->sens, tm_tslot, ssList));
+
+				if (actLoss > ris) {
+					ris = actLoss;
+				}
+			}*/
 		}
 		else {
-			for (auto& r : uav->sensMapTree[s->sens->id].timestamp_read) {
+			if (uav->sensMapTree[s->sens->id].timestamp_read.size() > 0) {
+				double rtime = s->readings.back().readTime;
 				list<double> eeList;
 				for (auto& ee : uav->sensMapTree){
 					if (ee.first != sn->sens->id) {
@@ -3594,7 +3607,7 @@ double MultiFlow::calculateLossBSF(list<pair<int,int>> &phi, SensorNode *sn, int
 				}
 				double actLoss = Loss::algebraic_sum(
 						Loss::getInstance().calculate_loss_distance(s->sens, sn->sens)
-						* Loss::getInstance().calculate_loss_time(r, tm),
+						* Loss::getInstance().calculate_loss_time(rtime, tm),
 						Loss::getInstance().calculate_loss_energy_onNumber(uav->sensMapTree[sn->sens->id].lastResidualEnergy, tm_tslot, eeList));
 
 				double closestThenMe = 0;
@@ -3627,6 +3640,41 @@ double MultiFlow::calculateLossBSF(list<pair<int,int>> &phi, SensorNode *sn, int
 					ris = actLoss;
 				}
 			}
+			/*for (auto& r : uav->sensMapTree[s->sens->id].timestamp_read) {
+				list<double> eeList;
+				for (auto& ee : uav->sensMapTree){
+					if (ee.first != sn->sens->id) {
+						eeList.push_back(ee.second.lastResidualEnergy);
+					}
+				}
+				double actLoss = Loss::algebraic_sum(
+						Loss::getInstance().calculate_loss_distance(s->sens, sn->sens)
+						* Loss::getInstance().calculate_loss_time(r, tm),
+						Loss::getInstance().calculate_loss_energy_onNumber(uav->sensMapTree[sn->sens->id].lastResidualEnergy, tm_tslot, eeList));
+
+				double closestThenMe = 0;
+				double myDist = uav->cn->pos.distance(sn->sens->coord);
+				for (auto& u : uav->neighMap) {
+					if (u.second.uav->cn->pos.distance(sn->sens->coord) < myDist) {
+						closestThenMe += 1.0;
+					}
+				}
+
+				//double discount = (closestThenMe + 1.0) / (((double) uav->neighMap.size()) + 1.0);
+				double penalty = 0.0;
+				if (uav->neighMap.size() > 0) {
+					penalty = pow(closestThenMe / ((double) uav->neighMap.size()), 3.0);
+				}
+				//cout << "        Inside calcLossSensor. Calculated discount: " << discount << endl << flush;
+
+
+				//actLoss *= discount;
+				actLoss = Loss::algebraic_sum(actLoss, penalty);
+
+				if (actLoss > ris) {
+					ris = actLoss;
+				}
+			}*/
 		}
 	}
 

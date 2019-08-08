@@ -46,13 +46,14 @@ public:
 	//       before deleted status
 
 public:
-	void init(int stepSimLog) {
+	void init(double stepSimLog) {
+		last_simulation_log = 0;
 		step_simulation_log = stepSimLog;
-		next_step_simulation_log = 0;
+		next_step_simulation_log = stepSimLog;
 	}
 
-	bool isTimeToLog(int sim_time);
-	void logging(int sim_time);
+	bool isTimeToLog(double sim_time);
+	void logging(double sim_time);
 
 	double calculate_andSave_index(int sim_time, std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &sensList, bool save);
 
@@ -69,8 +70,9 @@ public:
 	void calculate_actual_minmax_uav_charge_time(std::vector<CoordCluster *> &clustVec, double &avg, double &min, double &max, double &var);
 
 public:
-	int step_simulation_log;
-	int next_step_simulation_log;
+	double step_simulation_log;
+	double next_step_simulation_log;
+	double last_simulation_log;
 
 private:
 	std::list<IndexPair> indexesList;

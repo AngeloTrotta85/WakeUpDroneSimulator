@@ -816,6 +816,7 @@ void Simulator::finish_tree_multiflow(std::vector<CoordCluster *> &clustVec, std
 					<< numRechargeTimeRelative
 					<< endl;
 
+			ofs.close();
 		}
 	}
 
@@ -871,6 +872,8 @@ void Simulator::run_tree_multiflow_distr(std::vector<CoordCluster *> &clustVec, 
 
 
 void Simulator::finish_tree_multiflow_distr(std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &sensList, std::list<Readings *> &allReadings) {
+	if (Generic::getInstance().makeRunSimStat) return;  // don't make final stats if doing during the simulation
+
 	if (!Generic::getInstance().statFilename.empty()) {
 
 		std::ofstream ofs (Generic::getInstance().statFilename, std::ofstream::out | std::ofstream::app);
@@ -917,7 +920,7 @@ void Simulator::finish_tree_multiflow_distr(std::vector<CoordCluster *> &clustVe
 					<< numRechargeTimeTot << ";"
 					<< numRechargeTimeRelative
 					<< endl;
-
+			ofs.close();
 		}
 	}
 

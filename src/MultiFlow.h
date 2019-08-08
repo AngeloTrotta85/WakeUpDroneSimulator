@@ -190,6 +190,8 @@ public:
 	int rechargeBulk;
 
 	uavState us;
+
+	bool isAlive;
 };
 
 class MultiFlow {
@@ -332,6 +334,10 @@ public:
 	int calcNumRecharge_Tot(void);
 	double calcNumRechargeTime_Tot(void);
 	void calcFinalGainsTree(double &minGain, double &maxGain, double &varGain, double &avgGain);
+
+	int calcNumRead_Tree_interval(double begin, double end);
+	double calcIndex_Tree_interval(double begin, double end);
+	void makeOnSimStat(double sim_time);
 
 	void run_uav_tree(UavDistributed *uav, double simTime, int simTime_tslot) ;
 

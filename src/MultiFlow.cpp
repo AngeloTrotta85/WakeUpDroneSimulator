@@ -9,6 +9,7 @@
 #include "Generic.h"
 #include "RandomGenerator.h"
 #include "Loss.h"
+#include "Statistics.h"
 
 MultiFlow::MultiFlow(Algo_type at) {
 	actSensorTimeStamp = 0;
@@ -67,6 +68,7 @@ void MultiFlow::addChargStationAndUAV_distributed(MyCoord c, UAV *u) {
 
 	UavDistributed *newuav = new UavDistributed();
 	newuav->cn = newcs;
+	newuav->isAlive = true;
 
 	uav_list.push_back(newuav);
 }
@@ -1323,7 +1325,56 @@ void MultiFlow::calcFinalGainsTree(double &minGain, double &maxGain, double &var
 	}
 }
 
+int MultiFlow::calcNumRead_Tree_interval(double begin, double end) {
+	int ris = 0;
 
+	for (auto& s : sens_list) {
+		for (auto& r : s->real_readings) {
+			if ((r.readTime > begin) && (r.readTime <= end)) {
+				++ris;
+			}
+		}
+	}
+
+	return ris;
+}
+
+double MultiFlow::calcIndex_Tree_interval(double begin, double end) {
+	double ris = 0;
+
+	for (auto& s : sens_list) {
+		for (auto& r : s->real_readings) {
+			if ((r.readTime > begin) && (r.readTime <= end)) {
+				double actIndex = 1.0 - calcLossSensorOriginal_Tree(s, sens_list, r.readTime);
+				if (actIndex < 0) {
+					cerr << "Error in calculating index: " << actIndex << endl;
+					exit(EXIT_FAILURE);
+				}
+				ris += actIndex;
+			}
+		}
+	}
+
+	return ris;
+}
+
+void MultiFlow::makeOnSimStat(double sim_time) {
+	std::ofstream ofs (Generic::getInstance().statFilename, std::ofstream::out | std::ofstream::app);
+	if (ofs.is_open()) {
+		double lastLog = Statistics::getInstance().last_simulation_log;
+		double intervalIndex = calcIndex_Tree_interval(lastLog, sim_time);
+		double intervalRead = calcNumRead_Tree_interval(lastLog, sim_time);
+
+		double indexOverInterval = intervalIndex / (sim_time - lastLog);
+		double readOverInterval = intervalRead / (sim_time - lastLog);
+
+		ofs << sim_time
+				<< ";" << intervalIndex << ";" << indexOverInterval
+				<< ";" << intervalRead << ";" << readOverInterval << endl;
+
+		ofs.close();
+	}
+}
 
 
 
@@ -1399,8 +1450,9 @@ void MultiFlow::updateNeighMaps(double timenow) {
 		bool toUpdate = false;
 
 		for (auto& u2 : uav_list) {
-			if (u1->cn->id != u2->cn->id) {
-				if (u1->cn->u->actual_coord.distance(u2->cn->u->actual_coord) <= Generic::getInstance().uavComRange) {
+			if (u1->cn->id != u2->cn->id){
+				if ((u1->cn->u->actual_coord.distance(u2->cn->u->actual_coord) <= Generic::getInstance().uavComRange) &&
+						(u1->isAlive) && (u2->isAlive))  {
 					//update neigh map
 					if (u1->neighMap.count(u2->cn->id) == 0) {
 						u1->neighMap[u2->cn->id].uav = u2;
@@ -3105,11 +3157,19 @@ void MultiFlow::calculateBSF_energy(list<SensorNode *> &path, ChargingNode *cn, 
 		list<pair<SensorNode *, double>> allSens;
 		for (auto& s : sens_map) {
 			if (s.second->sens->id != qt_pair.first) {
-				if (centralized){
-					allSens.push_back(make_pair(s.second, s.second->sens->residual_energy));
+				bool add = true;
+				for (auto& cs : pathmap[qt_pair]) {
+					if (cs.first == s.second->sens->id) {
+						add = false;
+					}
 				}
-				else {
-					allSens.push_back(make_pair(s.second, uav->sensMapTree[s.second->sens->id].lastResidualEnergy));
+				if (add) {
+					if (centralized){
+						allSens.push_back(make_pair(s.second, s.second->sens->residual_energy));
+					}
+					else {
+						allSens.push_back(make_pair(s.second, uav->sensMapTree[s.second->sens->id].lastResidualEnergy));
+					}
 				}
 			}
 		}
@@ -3249,7 +3309,15 @@ void MultiFlow::calculateBSF_distance(list<SensorNode *> &path, ChargingNode *cn
 		for (auto& s : sens_map) {
 			if (s.second->sens->id != qt_pair.first) {
 				if (Sensor::isSensorID(qt_pair.first)) {
-					allSens.push_back(make_pair(s.second, s.second->sens->coord.distance(sens_map[qt_pair.first]->sens->coord)));
+					bool add = true;
+					for (auto& cs : pathmap[qt_pair]) {
+						if (cs.first == s.second->sens->id) {
+							add = false;
+						}
+					}
+					if (add) {
+						allSens.push_back(make_pair(s.second, s.second->sens->coord.distance(sens_map[qt_pair.first]->sens->coord)));
+					}
 				}
 				else {
 					allSens.push_back(make_pair(s.second, s.second->sens->coord.distance(cn->u->recharge_coord)));
@@ -3916,6 +3984,64 @@ void MultiFlow::run_tree_multiflow_distr(double end_time) {
 
 	while((sim_time <= end_time) && (sensAlive)) {
 
+		if (Generic::getInstance().dynamicUAVexperiment){		// 8 UAV
+			for (auto& u : uav_list) {
+				switch (u->cn->id) {
+				case 0:
+				case 1:
+				case 2:
+				case 3:
+					if (sim_time < (24.0 * 3600.0)) {
+						u->isAlive = true;
+					}
+					else {
+						u->isAlive = false;
+					}
+					break;
+
+				case 6:
+				case 7:
+					if (sim_time < (12.0 * 3600.0)) {
+						u->isAlive = false;
+					}
+					else {
+						u->isAlive = true;
+					}
+					break;
+
+				default:
+					break;
+				}
+			}
+		}
+		/*
+		if (Generic::getInstance().dynamicUAVexperiment){ // 3 UAV
+			for (auto& u : uav_list) {
+				switch (u->cn->id) {
+				case 0:
+					if (sim_time < (24.0 * 3600.0)) {
+						u->isAlive = true;
+					}
+					else {
+						u->isAlive = false;
+					}
+					break;
+
+				case 1:
+				case 2:
+					if (sim_time < (12.0 * 3600.0)) {
+						u->isAlive = false;
+					}
+					else {
+						u->isAlive = true;
+					}
+					break;
+
+				default:
+					break;
+				}
+			}
+		}*/
 
 		//cout << "Updating NeighMaps" << endl << flush;
 		updateNeighMaps(sim_time);
@@ -3935,6 +4061,16 @@ void MultiFlow::run_tree_multiflow_distr(double end_time) {
 
 			if (s->sens->residual_energy < 0) {
 				sensAlive = false;
+			}
+		}
+
+		if ((Generic::getInstance().makeRunSimStat) && (!Generic::getInstance().statFilename.empty())) {
+			if (Statistics::getInstance().isTimeToLog(sim_time)) {
+
+				makeOnSimStat(sim_time);
+
+
+				Statistics::getInstance().logging(sim_time);
 			}
 		}
 
@@ -4184,6 +4320,8 @@ void MultiFlow::run_uav_tree(UavDistributed *uav, double simTime, int simTime_ts
 		if (uav->cn->u->residual_energy >= uav->cn->u->max_energy) {
 			uav->cn->u->residual_energy = uav->cn->u->max_energy;
 		}
+
+		if (!uav->isAlive) break;
 
 		uav->rechargeBulk = max(0, uav->rechargeBulk - 1);
 

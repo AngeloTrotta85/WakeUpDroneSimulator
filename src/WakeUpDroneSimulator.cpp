@@ -238,6 +238,8 @@ int main(int argc, char **argv) {
 	double maxLoss = 0.8;				// max loss to take in consideration a sensor
 	bool usePOT = false;				// use psi/time to search for the best path in BSF
 
+	bool dynamicStatUAV = false;		// if true UAV 6,7 will start at 4H and UAV 4,5,6,7 will die at time 8H
+
 	//Statistics
 	int timeslots2log = 30;
 	bool makeStateDuringSim = false;
@@ -331,6 +333,8 @@ int main(int argc, char **argv) {
 	const std::string &multiflow_bsf_recharge_ratio = input.getCmdOption("-mfRecRatio");
 	const std::string &multiflow_max_loss = input.getCmdOption("-mfMaxLoss");
 	const std::string &multiflow_use_POT = input.getCmdOption("-mfUsePOT");
+
+	const std::string &multiflow_dynamic_UAV = input.getCmdOption("-mfDynamicUAV");
 
 	if (!seedUser.empty()) {
 		int seedR = atoi(seedUser.c_str());
@@ -560,6 +564,11 @@ int main(int argc, char **argv) {
 	if (!multiflow_use_POT.empty()) {
 		usePOT = atoi(multiflow_use_POT.c_str()) != 0;
 	}
+	if (!multiflow_dynamic_UAV.empty()) {
+		dynamicStatUAV = atoi(multiflow_dynamic_UAV.c_str()) != 0;
+	}
+
+
 
 	// HARD-CODED CHECK
 	if (eSTB > 0) {
@@ -572,7 +581,8 @@ int main(int argc, char **argv) {
 	Generic::getInstance().setWakeUpParam(wakeupPower, wakeupMinPower, wakeupFreq, energy2wakeup, gainTx, gainRx, gUmax, aUmax, gSmax, aSmax);
 	Generic::getInstance().setStatParam(makeStateDuringSim, statFile, hitmapFile);
 	Generic::getInstance().setMultiFlowParam(tsup, ttout, numr, ps_sup, ps_tx, ps_rx, pu_sup, pu_tx, pu_rx,
-			4*motorPower, uavComRange, neighUAVTout, twu, pwu, pcom, bsfExponent, rechargeRatio, maxLoss, usePOT);
+			4*motorPower, uavComRange, neighUAVTout, twu, pwu, pcom, bsfExponent, rechargeRatio, maxLoss,
+			usePOT, dynamicStatUAV);
 	Loss::getInstance().init(kd, kt, ke, md, mt, me, useSigmoid, a);
 	Statistics::getInstance().init(timeslots2log);
 

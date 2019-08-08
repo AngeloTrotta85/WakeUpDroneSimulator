@@ -8,12 +8,13 @@
 #include "Statistics.h"
 #include "Loss.h"
 
-bool Statistics::isTimeToLog(int sim_time) {
+bool Statistics::isTimeToLog(double sim_time) {
 	return ( (step_simulation_log > 0) && (sim_time >= next_step_simulation_log) );
 }
 
-void Statistics::logging(int sim_time) {
+void Statistics::logging(double sim_time) {
 	next_step_simulation_log = sim_time + step_simulation_log;
+	last_simulation_log = sim_time;
 }
 
 double Statistics::calculate_andSave_index(int sim_time, std::vector<CoordCluster *> &clustVec, std::list<Sensor *> &sensList, bool save) {
